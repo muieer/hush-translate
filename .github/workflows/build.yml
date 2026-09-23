@@ -1,0 +1,38 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:  # 手动触发
+  workflow_call:       # 允许被其他 workflow 引用（release.yml）
+
+jobs:
+  build:
+    name: Build Translate.app
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build and verify app
+        run: ./scripts/make-app.sh release
+
+      - name: Archive app
+        run: ditto -c -k --sequesterRsrc --keepParent build/Translate.app build/Translate.app.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Translate
+          path: build/Translate.app.zip
+          if-no-files-found: error
+          retention-days: 14
