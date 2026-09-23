@@ -5,18 +5,51 @@ import KeyboardShortcuts
 struct PreferencesView: View {
     @EnvironmentObject var coordinator: AppCoordinator
     @ObservedObject var settings: SettingsStore
+    let editSession: PreferencesEditSession
+
+    private enum Tab: Hashable { case general, session, hotkey, screenshot, advanced }
+    private enum Field: Hashable { case apiBaseURL, apiKey, model, sessionCount, sessionMinutes, requestTimeout, systemPrompt }
+    private enum SaveStatus: Equatable {
+        case unsaved, saved, invalid(String)
+    }
+
+    @State private var selectedTab: Tab = .general
+    @State private var drafts: [Field: String]
+    @State private var statuses: [Field: SaveStatus] = [:]
+    @FocusState private var focusedField: Field?
+
+    init(settings: SettingsStore, editSession: PreferencesEditSession) {
+        self.settings = settings
+        self.editSession = editSession
+        _drafts = State(initialValue: [
+            .apiBaseURL: settings.apiBaseURL,
+            .apiKey: settings.apiKey,
+            .model: settings.model,
+            .sessionCount: String(settings.sessionCount),
+            .sessionMinutes: String(settings.sessionMinutes),
+            .requestTimeout: settings.requestTimeout.formatted(.number),
+            .systemPrompt: settings.systemPrompt,
+        ])
+    }
 
     var body: some View {
-        TabView {
-            generalTab.tabItem { Label("通用", systemImage: "gearshape") }
-            sessionTab.tabItem { Label("翻译会话", systemImage: "character.cursor.ibeam") }
-            hotkeyTab.tabItem { Label("快捷键", systemImage: "keyboard") }
-            screenshotTab.tabItem { Label("截图翻译", systemImage: "camera.viewfinder") }
-            advancedTab.tabItem { Label("高级", systemImage: "slider.horizontal.3") }
+        TabView(selection: $selectedTab) {
+            generalTab.tabItem { Label("通用", systemImage: "gearshape") }.tag(Tab.general)
+            sessionTab.tabItem { Label("翻译会话", systemImage: "character.cursor.ibeam") }.tag(Tab.session)
+            hotkeyTab.tabItem { Label("快捷键", systemImage: "keyboard") }.tag(Tab.hotkey)
+            screenshotTab.tabItem { Label("截图翻译", systemImage: "camera.viewfinder") }.tag(Tab.screenshot)
+            advancedTab.tabItem { Label("高级", systemImage: "slider.horizontal.3") }.tag(Tab.advanced)
         }
         .frame(width: 580, height: 460)
         .padding(8)
         .onAppear { coordinator.refreshPermissions() }
+        .onChange(of: focusedField) { oldField, newField in
+            if oldField != newField, let oldField { commit(oldField) }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            if let focusedField { commit(focusedField) }
+            focusedField = nil
+        }
     }
 
     // MARK: - 通用
@@ -33,18 +66,9 @@ struct PreferencesView: View {
             }
 
             Section("OpenAI 兼容接口") {
-                LabeledContent("Base URL") {
-                    TextField("", text: $settings.apiBaseURL)
-                        .textFieldStyle(.roundedBorder)
-                }
-                LabeledContent("API Key") {
-                    SecureField("", text: $settings.apiKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-                LabeledContent("Model") {
-                    TextField("", text: $settings.model)
-                        .textFieldStyle(.roundedBorder)
-                }
+                settingsRow("Base URL", field: .apiBaseURL)
+                settingsRow("API Key", field: .apiKey)
+                settingsRow("Model", field: .model)
                 Text("支持 LM Studio、Ollama、OpenAI、DeepSeek、SiliconFlow、Moonshot 等所有 OpenAI 兼容 chat 接口。")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -79,10 +103,8 @@ struct PreferencesView: View {
                     .foregroundColor(.secondary)
             }
             Section("会话参数") {
-                PositiveSessionField(title: "默认次数", unit: "次", value: settings.sessionCount,
-                                     save: { settings.setSessionCount($0) })
-                PositiveSessionField(title: "默认时长", unit: "分钟", value: settings.sessionMinutes,
-                                     save: { settings.setSessionMinutes($0) })
+                settingsRow("默认次数", field: .sessionCount, width: 100, unit: "次")
+                settingsRow("默认时长", field: .sessionMinutes, width: 100, unit: "分钟")
                 Text("菜单栏的「开启 N 次」与「开启 N 分钟」也使用这些值。修改设置将在下次启动会话时生效。")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -218,27 +240,28 @@ struct PreferencesView: View {
     private var advancedTab: some View {
         Form {
             Section("请求") {
-                LabeledContent("超时 (秒)") {
-                    TextField("", value: $settings.requestTimeout, format: .number)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                }
+                settingsRow("超时 (秒)", field: .requestTimeout, width: 80)
             }
             Section("自定义系统提示词") {
-                TextEditor(text: $settings.systemPrompt)
+                TextEditor(text: draftBinding(for: .systemPrompt))
                     .font(.system(size: 12))
                     .frame(height: 120)
+                    .focused($focusedField, equals: .systemPrompt)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
+                saveStatus(for: .systemPrompt)
                 HStack {
                     Text("整段作为 system 消息发送。支持以下变量，发送前自动替换为实际值：")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
                     Button("恢复默认") {
+                        statuses[.systemPrompt] = .saved
+                        drafts[.systemPrompt] = SettingsStore.defaultSystemPrompt
                         settings.systemPrompt = SettingsStore.defaultSystemPrompt
+                        focusedField = nil
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -269,46 +292,145 @@ struct PreferencesView: View {
             get: { nil },
             set: { name in
                 guard let name = name, let p = SettingsStore.presets.first(where: { $0.name == name }) else { return }
+                if let focusedField { commit(focusedField) }
+                focusedField = nil
+                drafts[.apiBaseURL] = p.base
+                statuses[.apiBaseURL] = .saved
                 settings.apiBaseURL = p.base
-                if !p.key.isEmpty { settings.apiKey = p.key }
+                if !p.key.isEmpty {
+                    drafts[.apiKey] = p.key
+                    statuses[.apiKey] = .saved
+                    settings.apiKey = p.key
+                }
+                drafts[.model] = p.model
+                statuses[.model] = .saved
                 settings.model = p.model
             }
         )
     }
-}
 
-/// Keep incomplete input local; only valid positive integers reach persistent settings.
-private struct PositiveSessionField: View {
-    let title: String
-    let unit: String
-    let value: Int
-    let save: (Int) -> Void
-    @State private var draft = ""
-
-    private var parsed: Int? {
-        guard !draft.isEmpty, draft.allSatisfy({ $0.isASCII && $0.isNumber }),
-              let number = Int(draft), number > 0 else { return nil }
-        return number
+    private func draftBinding(for field: Field) -> Binding<String> {
+        Binding(
+            get: { drafts[field] ?? "" },
+            set: { newValue in
+                guard drafts[field] != newValue else { return }
+                drafts[field] = newValue
+                if !matchesSavedValue(newValue, for: field) {
+                    statuses[field] = .unsaved
+                }
+            }
+        )
     }
 
-    var body: some View {
+    private func settingsRow(_ title: String, field: Field, width: CGFloat? = nil, unit: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             LabeledContent(title) {
-                TextField(title, text: $draft)
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
-                Text(unit)
+                HStack(spacing: 8) {
+                    input(for: field)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: width)
+                    if let unit { Text(unit).foregroundColor(.secondary) }
+                    saveStatus(for: field)
+                }
             }
-            if parsed == nil {
-                Text("请输入有效正整数；当前仍使用 \(value) \(unit)。")
+            if case .invalid(let message) = statuses[field] {
+                Text(message)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.red)
             }
         }
-        .onAppear { draft = String(value) }
-        .onChange(of: draft) { _, _ in
-            if let number = parsed { save(number) }
+    }
+
+    @ViewBuilder
+    private func input(for field: Field) -> some View {
+        if field == .apiKey {
+            SecureField("", text: draftBinding(for: field))
+                .focused($focusedField, equals: field)
+                .onSubmit { commit(field, explicit: true) }
+        } else {
+            TextField("", text: draftBinding(for: field))
+                .focused($focusedField, equals: field)
+                .onSubmit { commit(field, explicit: true) }
         }
+    }
+
+    private func saveStatus(for field: Field) -> some View {
+        let isSaved = statuses[field] == .saved
+        return Image(systemName: "checkmark.circle.fill")
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(.green)
+            .frame(width: 22, height: 22)
+            .opacity(isSaved ? 1 : 0)
+            .allowsHitTesting(isSaved)
+            .help("已保存")
+            .accessibilityLabel("已保存")
+            .accessibilityHidden(!isSaved)
+    }
+
+    private func matchesSavedValue(_ draft: String, for field: Field) -> Bool {
+        switch field {
+        case .apiBaseURL: return draft == settings.apiBaseURL
+        case .apiKey: return draft == settings.apiKey
+        case .model: return draft == settings.model
+        case .sessionCount: return positiveInteger(draft) == settings.sessionCount
+        case .sessionMinutes: return positiveInteger(draft) == settings.sessionMinutes
+        case .requestTimeout: return Double(draft) == settings.requestTimeout
+        case .systemPrompt: return draft == settings.systemPrompt
+        }
+    }
+
+    private func positiveInteger(_ field: Field) -> Int? {
+        positiveInteger(drafts[field] ?? "")
+    }
+
+    private func positiveInteger(_ text: String) -> Int? {
+        guard !text.isEmpty, text.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let value = Int(text), value > 0 else { return nil }
+        return value
+    }
+
+    private func commit(_ field: Field, explicit: Bool = false) {
+        guard !editSession.isClosing else { return }
+        guard explicit || statuses[field] == .unsaved || isInvalid(field) else { return }
+        switch field {
+        case .apiBaseURL:
+            settings.apiBaseURL = drafts[field] ?? ""
+        case .apiKey:
+            settings.apiKey = drafts[field] ?? ""
+        case .model:
+            settings.model = drafts[field] ?? ""
+        case .sessionCount:
+            guard let value = positiveInteger(field) else {
+                statuses[field] = .invalid("请输入有效正整数；当前仍使用 \(settings.sessionCount) 次。")
+                return
+            }
+            settings.setSessionCount(value)
+        case .sessionMinutes:
+            guard let value = positiveInteger(field) else {
+                statuses[field] = .invalid("请输入有效正整数；当前仍使用 \(settings.sessionMinutes) 分钟。")
+                return
+            }
+            settings.setSessionMinutes(value)
+        case .requestTimeout:
+            let input = drafts[field] ?? ""
+            guard let value = Double(input), value.isFinite, value > 0 else {
+                statuses[field] = .invalid("请输入大于 0 的秒数；当前仍使用 \(settings.requestTimeout.formatted(.number)) 秒。")
+                return
+            }
+            settings.requestTimeout = value
+        case .systemPrompt:
+            let input = drafts[field] ?? ""
+            guard !input.isEmpty else {
+                statuses[field] = .invalid("提示词不能为空；当前仍使用已保存的内容。")
+                return
+            }
+            settings.systemPrompt = input
+        }
+        statuses[field] = .saved
+    }
+
+    private func isInvalid(_ field: Field) -> Bool {
+        if case .invalid = statuses[field] { return true }
+        return false
     }
 }
