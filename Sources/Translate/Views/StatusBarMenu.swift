@@ -7,9 +7,9 @@ struct StatusBarMenu: View {
 
     var body: some View {
         Button {
-            coordinator.translateSelectionNow()
+            coordinator.startDefaultTranslationSession()
         } label: {
-            Label("翻译选中文本", systemImage: "character.cursor.ibeam")
+            Label("开启翻译会话", systemImage: "character.cursor.ibeam")
         }
 
         Button {

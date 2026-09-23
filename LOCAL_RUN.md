@@ -60,7 +60,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 ```
 
 `TranslationSessionTests` 使用可控时间和到期回调验证状态转换，不需要真实等待数分钟。
-第一阶段默认配置为 `COUNT(3)`，仅存在于配置模型中，不持久化；应用持有的 Session 初始为 OFF，尚未接入划词、快捷键或菜单栏。
+默认配置为 `COUNT(3)`，保存在内存设置中，不持久化。应用启动时 Session 为 OFF；第二阶段已接入划词监听，`⌃⌥⌘D` 与菜单中的“开启翻译会话”均启动一个新的默认 Session。完整会话控制和状态 UI 留到第三阶段。
+
+`SelectionTranslationTests` 验证 Session 与捕获的连接、过期和替换时的迟到回调、快捷键对应的默认启动行为及候选鼠标手势。测试不操作系统剪贴板，也不执行 GUI 交互。
 
 ## 已知源码告警
 

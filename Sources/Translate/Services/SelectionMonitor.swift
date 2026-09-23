@@ -1,74 +1,116 @@
 import AppKit
 
-/// 全局监听鼠标抬起，自动用模拟 Cmd+C 抓取当前选中文本。
-/// 需要**辅助功能权限**（系统设置 → 隐私与安全性 → 辅助功能）。
-@MainActor
-final class SelectionMonitor {
+/// Only selection gestures in other applications are capture candidates.
+/// A plain click or a right click must not copy unrelated content.
+struct SelectionGestureTracker {
+    private var dragged = false
 
+    mutating func accepts(_ type: NSEvent.EventType, clickCount: Int, shift: Bool) -> Bool {
+        switch type {
+        case .leftMouseDown:
+            dragged = false
+        case .leftMouseDragged:
+            dragged = true
+        case .leftMouseUp:
+            defer { dragged = false }
+            return dragged || clickCount >= 2 || shift
+        default:
+            break
+        }
+        return false
+    }
+}
+
+/// Uses the existing Cmd+C / changeCount capture path, only while a session is active.
+@MainActor
+final class SelectionMonitor: SelectionMonitoring {
     private var monitor: Any?
+    private var captureTask: Task<Void, Never>?
+    private var generation = UUID()
+    private var gestures = SelectionGestureTracker()
+    private var shouldCapture: (() -> Bool)?
     private var onCapture: ((String) -> Void)?
 
-    /// 启动监听。回调在主线程触发。
-    func start(onCapture: @escaping (String) -> Void) {
+    func start(shouldCapture: @escaping () -> Bool, onCapture: @escaping (String) -> Void) {
         stop()
+        self.shouldCapture = shouldCapture
         self.onCapture = onCapture
-
-        // 监听 mouseUp：用户松手时尝试读取当前 selection
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp]) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in
-                await self.tryCapture()
+        let generation = generation
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            // NSEvent invokes global monitor handlers on the main thread.
+            MainActor.assumeIsolated {
+                guard let self, self.generation == generation else { return }
+                self.handle(event)
             }
-        }
-
-        if monitor == nil {
-            Log.sel.error("addGlobalMonitorForEvents 返回 nil — 大概率没开辅助功能权限")
-        } else {
-            Log.sel.info("Selection monitor started")
         }
     }
 
     func stop() {
-        if let m = monitor { NSEvent.removeMonitor(m) }
+        generation = UUID()
+        captureTask?.cancel()
+        captureTask = nil
+        if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        shouldCapture = nil
         onCapture = nil
+        gestures = SelectionGestureTracker()
     }
 
-    // MARK: - Private
-
-    private func tryCapture() async {
-        // 50ms 延迟，让系统处理默认 click
-        try? await Task.sleep(nanoseconds: 50_000_000)
-        // macOS 上 NSPasteboard.general 不会因模拟 Cmd+C 写到自己的 pasteboard 吗？不会，
-        // 系统级 Cmd+C 写到通用 pasteboard 会被我们的模拟触发。
-        let pb = NSPasteboard.general
-        let old = pb.changeCount
-
-        simulateCopy()
-
-        // 等剪贴板更新（最多 200ms）
-        let deadline = Date().addingTimeInterval(0.2)
-        while pb.changeCount == old, Date() < deadline {
-            try? await Task.sleep(nanoseconds: 15_000_000)
+    private func handle(_ event: NSEvent) {
+        // A new gesture invalidates an unfinished capture before its copy/read.
+        if event.type == .leftMouseDown {
+            captureTask?.cancel()
+            captureTask = nil
         }
-
-        guard pb.changeCount != old, let text = pb.string(forType: .string), !text.isEmpty else {
-            return
+        guard gestures.accepts(event.type, clickCount: event.clickCount,
+                               shift: event.modifierFlags.contains(.shift)),
+              shouldCapture?() == true else { return }
+        captureTask?.cancel()
+        let generation = generation
+        let application = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        captureTask = Task { [weak self] in
+            await self?.tryCapture(generation: generation, application: application)
         }
-        onCapture?(text)
+    }
+
+    private func tryCapture(generation: UUID, application: pid_t?) async {
+        do {
+            // Allow the target application to finish updating its selection.
+            try await Task.sleep(nanoseconds: 50_000_000)
+            guard canContinue(generation: generation, application: application) else { return }
+            let pb = NSPasteboard.general
+            let old = pb.changeCount
+            simulateCopy()
+
+            // Never fall back to old clipboard text on timeout or capture failure.
+            for _ in 0..<14 {
+                try await Task.sleep(nanoseconds: 15_000_000)
+                guard canContinue(generation: generation, application: application) else { return }
+                if pb.changeCount != old {
+                    guard let text = pb.string(forType: .string),
+                          !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                    onCapture?(text)
+                    return
+                }
+            }
+        } catch {
+            // Cancellation is expected when another gesture or session supersedes this one.
+        }
+    }
+
+    private func canContinue(generation: UUID, application: pid_t?) -> Bool {
+        !Task.isCancelled && self.generation == generation &&
+            application != nil && NSWorkspace.shared.frontmostApplication?.processIdentifier == application &&
+            shouldCapture?() == true
     }
 
     private func simulateCopy() {
         let src = CGEventSource(stateID: .hidSystemState)
-        // kVK_ANSI_C = 0x08
         guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: true),
-              let keyUp   = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: false) else {
-            return
-        }
+              let keyUp = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: false) else { return }
         keyDown.flags = .maskCommand
-        keyUp.flags   = .maskCommand
+        keyUp.flags = .maskCommand
         keyDown.post(tap: .cghidEventTap)
-        usleep(20_000)
         keyUp.post(tap: .cghidEventTap)
     }
 }
