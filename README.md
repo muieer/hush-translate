@@ -71,7 +71,7 @@ Debug 构建会自动选择钥匙串中的 `Apple Development` 证书。若存�
 
 1. 启动后菜单栏右上角会出现一个气泡图标
 2. 点击菜单栏图标 → 「设置...」
-3. 在「通用」标签选预设（如「LM Studio (本地)」）或填自定义：
+3. 在「通用」标签填写 OpenAI 兼容接口配置：
    - Base URL: 你的 OpenAI 兼容服务地址
    - API Key: 对应 key（本地一般填任意非空字符串）
    - Model: 模型名
@@ -83,13 +83,13 @@ Debug 构建会自动选择钥匙串中的 `Apple Development` 证书。若存�
 
 1. 打开 LM Studio → 启动 local server（默认 `http://localhost:1234/v1`）
 2. 加载一个 instruct 模型（推荐 `qwen2.5-7b-instruct`）
-3. 启动 HushTranslate → 选「LM Studio (本地)」预设 → 直接用
+3. 启动 HushTranslate → 在「通用」中填写 Base URL `http://localhost:1234/v1`、API Key 和已加载的模型名
 
 ## Ollama 配置
 
 1. `ollama pull qwen2.5:7b`
 2. Ollama 监听 `http://localhost:11434`
-3. HushTranslate → 选「Ollama」预设
+3. HushTranslate → 在「通用」中填写 Base URL `http://localhost:11434/v1`、API Key 和模型名 `qwen2.5:7b`
 
 ## 项目结构
 
