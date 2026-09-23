@@ -43,7 +43,24 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh d
 关闭 Xcode 中正在构建的项目和旧应用后，删除项目 `.build/` 与 `build/` 即可清理编译产物，再执行标准构建命令。
 不要删除受版本管理的 `Package.resolved`。若要升级依赖，应同时更新版本约束与锁文件并重新验证。
 
-验证干净构建时，只需复制 `Package.swift`、`Package.resolved`、`Sources/`、`Info/`、`scripts/` 到独立目录，然后执行 `./scripts/make-app.sh release`；不复制 `.build/`、`.swiftpm/` 或旧应用。
+验证干净构建时，只需复制 `Package.swift`、`Package.resolved`、`Sources/`、`Tests/`、`Info/`、`scripts/` 到独立目录，然后执行 `./scripts/make-app.sh release`；不复制 `.build/`、`.swiftpm/` 或旧应用。
+
+## Session 核心单元测试
+
+使用完整 Xcode 运行测试，不启动应用、不注册快捷键，也不调用模型：
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+  -scheme HushTranslate -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath .build/xcode \
+  -clonedSourcePackagesDirPath .build/xcode-packages \
+  -onlyUsePackageVersionsFromResolvedFile -skipPackageUpdates \
+  -disablePackageRepositoryCache -scmProvider system \
+  test CODE_SIGNING_ALLOWED=NO
+```
+
+`TranslationSessionTests` 使用可控时间和到期回调验证状态转换，不需要真实等待数分钟。
+第一阶段默认配置为 `COUNT(3)`，仅存在于配置模型中，不持久化；应用持有的 Session 初始为 OFF，尚未接入划词、快捷键或菜单栏。
 
 ## 已知源码告警
 
