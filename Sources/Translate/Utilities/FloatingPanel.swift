@@ -55,13 +55,19 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
     ///   - maxSize: 高度上限（超出后内容内部滚动）。默认屏幕可用高度的 70%。
     ///   - pinned: 是否置顶浮在最前。
     ///   - keepPinned: 复用现有窗口时是否保留当前置顶状态（刷新内容时不重置置顶）。
+    ///   - keepPosition: 更新内容时保留窗口左上角；仅新一次翻译按鼠标位置定位。
     ///   - anchor: 屏幕坐标（用于定位左上角）；nil = 当前鼠标位置
     func show(@ViewBuilder _ viewBuilder: @escaping () -> Content,
               size: NSSize = NSSize(width: 420, height: 220),
               maxSize: NSSize? = nil,
               pinned: Bool = false,
               keepPinned: Bool = false,
+              keepPosition: Bool = false,
               anchor: NSPoint? = nil) {
+        // 在替换内容前记录位置，避免内容布局改变窗口尺寸后丢失原来的顶部锚点。
+        let previousTopLeft = keepPosition ? panel.map {
+            NSPoint(x: $0.frame.minX, y: $0.frame.maxY)
+        } : nil
         if !keepPinned {
             self.pinned = pinned
         }
@@ -146,14 +152,15 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
         )
 
         // 定位
-        if let anchor = anchor {
-            panel?.setFrameTopLeftPoint(anchor)
+        if let topLeft = previousTopLeft ?? anchor {
+            panel?.setFrame(NSRect(x: topLeft.x, y: topLeft.y - fitted.height,
+                                  width: fitted.width, height: fitted.height), display: true)
         } else {
             // 当前鼠标位置
             let mouse = NSEvent.mouseLocation
             let frame = NSRect(
                 x: mouse.x - fitted.width / 2,
-                y: mouse.y - fitted.height - 16,  // 鼠标上方 16px
+                y: mouse.y - fitted.height - 16,  // 鼠标下方 16px
                 width: fitted.width,
                 height: fitted.height
             )
