@@ -36,6 +36,7 @@ final class AppCoordinator: ObservableObject {
     let selection  = SelectionMonitor()
     let screenshot = ScreenshotService()
     let ocr        = OCRService()
+    let translationSession = TranslationSessionStore()
 
     private var resultPanel: FloatingPanelController<AnyView>?
     private var workingTask: Task<Void, Never>?

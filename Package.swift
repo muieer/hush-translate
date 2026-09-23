@@ -24,6 +24,11 @@ let package = Package(
                 // Carbon 用于 RegisterEventHotKey
                 .linkedFramework("Carbon")
             ]
+        ),
+        .testTarget(
+            name: "HushTranslateTests",
+            dependencies: ["HushTranslate"],
+            path: "Tests/HushTranslateTests"
         )
     ]
 )
