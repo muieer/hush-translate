@@ -37,6 +37,7 @@ final class AppCoordinator: ObservableObject {
     let screenshot = ScreenshotService()
     let ocr        = OCRService()
     let translationSession = TranslationSessionStore()
+    lazy var sessionPresentation = SessionPresentation(session: translationSession)
 
     private lazy var selectionTranslation = SelectionTranslationController(
         session: translationSession,
@@ -83,6 +84,19 @@ final class AppCoordinator: ObservableObject {
         } catch {
             showError("翻译会话配置无效：次数和分钟数必须为正整数。")
         }
+    }
+
+    func startTranslationSession(_ configuration: TranslationSessionConfiguration) {
+        guard ensurePermissionsForSelection() else { return }
+        do {
+            try translationSession.start(configuration: configuration)
+        } catch {
+            showError("翻译会话配置无效：次数和分钟数必须为正整数。")
+        }
+    }
+
+    func closeTranslationSession() {
+        translationSession.close()
     }
 
     /// 截图翻译

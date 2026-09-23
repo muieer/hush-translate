@@ -29,12 +29,58 @@ enum OCRMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum SessionMode: String, CaseIterable, Identifiable {
+    case always, count, timer
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .always: return "持续开启"
+        case .count: return "按次数开启"
+        case .timer: return "按分钟开启"
+        }
+    }
+}
+
 /// 翻译服务配置。UserDefaults 持久化。
 @MainActor
 final class SettingsStore: ObservableObject {
 
-    /// Session preset is in-memory until the settings UI is introduced.
-    @Published var defaultTranslationSession: TranslationSessionConfiguration = .defaultPreset
+    @Published var defaultSessionMode: SessionMode {
+        didSet { defaults.set(defaultSessionMode.rawValue, forKey: "session.mode") }
+    }
+    @Published private(set) var sessionCount: Int
+    @Published private(set) var sessionMinutes: Int
+
+    var defaultTranslationSession: TranslationSessionConfiguration {
+        switch defaultSessionMode {
+        case .always: return .always
+        case .count: return .count(sessionCount)
+        case .timer: return .timer(minutes: sessionMinutes)
+        }
+    }
+
+    @discardableResult
+    func setSessionCount(_ value: Int) -> Bool {
+        guard value > 0 else { return false }
+        sessionCount = value
+        defaults.set(value, forKey: "session.count")
+        return true
+    }
+
+    @discardableResult
+    func setSessionMinutes(_ value: Int) -> Bool {
+        guard value > 0 else { return false }
+        sessionMinutes = value
+        defaults.set(value, forKey: "session.minutes")
+        return true
+    }
+
+    private static func positiveInteger(_ defaults: UserDefaults, key: String, fallback: Int) -> Int {
+        guard let number = defaults.object(forKey: key) as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              let value = Int(number.stringValue), value > 0 else { return fallback }
+        return value
+    }
 
     @Published var apiBaseURL: String { didSet { defaults.set(apiBaseURL, forKey: "apiBaseURL") } }
     @Published var apiKey: String { didSet { defaults.set(apiKey, forKey: "apiKey") } }
@@ -48,10 +94,13 @@ final class SettingsStore: ObservableObject {
     @Published var requestTimeout: Double { didSet { defaults.set(requestTimeout, forKey: "requestTimeout") } }
     @Published var systemPrompt: String { didSet { defaults.set(systemPrompt, forKey: "systemPrompt") } }
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
 
-    init() {
-        let d = UserDefaults.standard
+    init(defaults d: UserDefaults = .standard) {
+        self.defaults = d
+        self.defaultSessionMode = SessionMode(rawValue: d.string(forKey: "session.mode") ?? "") ?? .count
+        self.sessionCount = Self.positiveInteger(d, key: "session.count", fallback: 3)
+        self.sessionMinutes = Self.positiveInteger(d, key: "session.minutes", fallback: 10)
         self.apiBaseURL           = d.string(forKey: "apiBaseURL") ?? "http://localhost:1234/v1"
         self.apiKey               = d.string(forKey: "apiKey") ?? "lm-studio"
         self.model                = d.string(forKey: "model") ?? "qwen2.5-7b-instruct"
