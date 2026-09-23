@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct TranslateApp: App {
+struct HushTranslateApp: App {
     @StateObject private var coordinator = AppCoordinator.shared
 
     var body: some Scene {

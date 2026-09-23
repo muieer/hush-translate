@@ -227,7 +227,7 @@ struct PreferencesView: View {
                 }
                 Button("在 Finder 中显示数据目录") {
                     let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-                        .appendingPathComponent("Translate", isDirectory: true)
+                        .appendingPathComponent("HushTranslate", isDirectory: true)
                     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                     NSWorkspace.shared.activateFileViewerSelecting([dir])
                 }

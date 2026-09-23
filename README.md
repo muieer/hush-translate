@@ -1,20 +1,20 @@
-# Translate
+# HushTranslate
 
-macOS 原生翻译软件，仿 Bob 风格。SwiftUI + AppKit 实现。
+macOS 原生翻译软件。SwiftUI + AppKit 实现。
 
 ## 功能
 
 - **选中翻译**：按快捷键自动读取当前选中文本，调用大模型翻译，悬浮窗显示结果
 - **截图翻译**：按快捷键 → 框选屏幕区域 → 本地 Vision OCR / 多模态大模型 → 翻译
 - **剪贴板翻译**：翻译剪贴板里已有的内容
-- **菜单栏常驻**：bob 风格气泡图标，菜单栏下拉菜单
+- **菜单栏常驻**：气泡图标，菜单栏下拉菜单
 - **OpenAI 兼容**：支持 LM Studio / Ollama / OpenAI / DeepSeek / SiliconFlow / Moonshot / 自定义任何兼容 OpenAI chat 接口的服务
 - **多模态**：截图模式下可选本地 OCR（免费离线）或直接发图给多模态大模型（GPT-4o / Qwen2-VL / Llama 3.2 Vision 等）
 
 ## 界面风格
 
 - 菜单栏图标 + 下拉菜单
-- 悬浮翻译结果窗：圆角 + 磨砂背景 + 居中显示，仿 bob
+- 悬浮翻译结果窗：圆角 + 磨砂背景 + 居中显示
 - 截图选区：全屏遮罩 + 挖空选区 + 角点 + 尺寸标签
 - 设置面板：原生 Tabbed Preferences 风格
 
@@ -44,10 +44,10 @@ macOS 原生翻译软件，仿 Bob 风格。SwiftUI + AppKit 实现。
 ./scripts/make-app.sh debug
 
 # 2. 启动；默认仅显示菜单栏入口
-open build/Translate.app
+open build/HushTranslate.app
 
 # 或在退出旧进程后，启动并直接显示设置
-open build/Translate.app --args --show-settings
+open build/HushTranslate.app --args --show-settings
 
 # 3. 构建 release 版本
 ./scripts/make-app.sh release
@@ -83,18 +83,18 @@ Debug 构建会自动选择钥匙串中的 `Apple Development` 证书。若存�
 
 1. 打开 LM Studio → 启动 local server（默认 `http://localhost:1234/v1`）
 2. 加载一个 instruct 模型（推荐 `qwen2.5-7b-instruct`）
-3. 启动 Translate → 选「LM Studio (本地)」预设 → 直接用
+3. 启动 HushTranslate → 选「LM Studio (本地)」预设 → 直接用
 
 ## Ollama 配置
 
 1. `ollama pull qwen2.5:7b`
 2. Ollama 监听 `http://localhost:11434`
-3. Translate → 选「Ollama」预设
+3. HushTranslate → 选「Ollama」预设
 
 ## 项目结构
 
 ```
-translate/
+HushTranslate/
 ├── Package.swift
 ├── Sources/Translate/
 │   ├── App.swift                      # 主入口（MenuBarExtra + Settings）
@@ -135,7 +135,7 @@ scripts/
 
 查 crash log：
 ```bash
-ls -lt ~/Library/Logs/DiagnosticReports/Translate*.ips | head -1 | xargs cat
+ls -lt ~/Library/Logs/DiagnosticReports/HushTranslate*.ips | head -1 | xargs cat
 ```
 
 **已知 crash 1**：`EXC_BAD_ACCESS` 落在 `AXIsProcessTrustedWithOptions` → `CFGetTypeID`
@@ -144,7 +144,7 @@ ls -lt ~/Library/Logs/DiagnosticReports/Translate*.ips | head -1 | xargs cat
 
 **已知 crash 2**：app 启动后立刻消失
 - 检查：菜单栏右上角有没有气泡图标？没有 = 启动崩溃了，看 crash log
-- 看 Console.app → 搜 "Translate"
+- 看 Console.app → 搜 "HushTranslate"
 
 ## License
 

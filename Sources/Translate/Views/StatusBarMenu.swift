@@ -34,7 +34,7 @@ struct StatusBarMenu: View {
 
         Divider()
 
-        Text("Translate 0.1.0")
+        Text("HushTranslate 0.1.0")
             .font(.system(size: 10))
             .foregroundColor(.secondary)
 

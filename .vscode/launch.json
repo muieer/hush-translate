@@ -5,20 +5,20 @@
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:HushTranslate}",
-            "name": "Debug Translate",
-            "target": "Translate",
+            "name": "Debug HushTranslate",
+            "target": "HushTranslate",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug Translate"
+            "preLaunchTask": "swift: Build Debug HushTranslate"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:HushTranslate}",
-            "name": "Release Translate",
-            "target": "Translate",
+            "name": "Release HushTranslate",
+            "target": "HushTranslate",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release Translate"
+            "preLaunchTask": "swift: Build Release HushTranslate"
         }
     ]
 }
