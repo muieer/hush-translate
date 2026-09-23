@@ -31,9 +31,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh d
 - 已移除项目级本地镜像；不再使用先前下载的源码归档、本地 Git 提交或 `#Preview` 补丁。
 - 首次构建需要 GitHub 网络连接。脚本关闭共享依赖仓库缓存，依赖 checkout 存放在 `.build/xcode-packages`，构建数据在 `.build/xcode`。
 - 使用完整 Xcode 的 `xcodebuild` 构建 Swift package；它生成的资源访问代码支持 `Contents/Resources`。
-- 资源 bundle 使用 Xcode 标准结构，从内到外 ad-hoc 签名，并执行 `codesign --verify --deep --strict`。
+- 资源 bundle 使用 Xcode 标准结构，并从内到外签名，最终执行 `codesign --verify --deep --strict`。
+- Debug 构建必须使用钥匙串中的稳定 `Apple Development` 证书；脚本会自动选择第一个有效证书，也可通过 `HUSHTRANSLATE_SIGNING_IDENTITY` 显式指定名称或 SHA-1。
+- 从旧 ad-hoc 构建首次切换到稳定开发签名后，辅助功能和屏幕录制权限可能需要重新授权一次；之后保持相同 Bundle ID 与开发签名，可避免常规重建反复产生新的代码身份。
+- 若缺少开发证书，先在 Xcode → Settings → Accounts 登录 Apple ID，并用 `security find-identity -v -p codesigning` 确认存在 `Apple Development` identity。
+- Release 构建暂时维持原有 ad-hoc 签名；Developer ID 分发签名与 Apple 公证另行处理。
 - 已删除运行时修改应用目录的资源修复代码，应用根目录不再放软链接。
-- 本地 ad-hoc 签名并不等于 Developer ID 签名或 Apple 公证；对外分发另行处理。
 
 ## 重建
 
@@ -54,3 +57,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh d
 - 应用启动后再次执行严格签名验证通过，应用根目录无资源软链接。
 - 桌面自动化读取设置窗口超时，因此本次未通过 UI 自动化复验设置标签和快捷键录制；翻译及交互验收沿用用户先前的验证，后续功能改动再按需验证。
 - 旧 SwiftPM 构建目录、本地依赖镜像源码、预览补丁和本次临时诊断文件已清理。
+
+## 2026-09-23 开发签名验证
+
+- 登录钥匙串中的开发证书起初缺少有效的 Apple WWDR G3 中间证书；从 Apple 官方证书库安装后，`security find-identity -v -p codesigning` 显示有效的 Apple Development identity。
+- 两次 Debug 构建均通过 `codesign --verify --deep --strict`；两次产物的 `Identifier`、`Authority` 和 `TeamIdentifier` 完全一致。
+- 显式指定证书名称或 SHA-1 构建也保持相同代码身份；无效的显式身份会在构建前被拒绝。
+- Release 构建通过，产物仍为 ad-hoc 签名。
