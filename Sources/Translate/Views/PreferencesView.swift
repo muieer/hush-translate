@@ -70,8 +70,8 @@ struct PreferencesView: View {
     private var hotkeyTab: some View {
         Form {
             Section("全局快捷键（在系统任意位置生效）") {
-                KeyboardShortcuts.Recorder(for: .translateSelection) {
-                    Text("选中文本翻译：")
+                KeyboardShortcuts.Recorder(for: .startTranslationSession) {
+                    Text("开启翻译会话：")
                 }
                 KeyboardShortcuts.Recorder(for: .translateScreenshot) {
                     Text("截图翻译：")
@@ -79,7 +79,7 @@ struct PreferencesView: View {
                 KeyboardShortcuts.Recorder(for: .translateClipboard) {
                     Text("剪贴板翻译：")
                 }
-                Text("默认：⌃⌥⌘D 选中文本 / ⌘⌥⇧S 截图 / ⌃⌥⌘V 剪贴板。可在录制框中按下新组合键覆盖。")
+                Text("默认：⌃⌥⌘D 开启会话 / ⌘⌥⇧S 截图 / ⌃⌥⌘V 剪贴板。可在录制框中按下新组合键覆盖。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -88,7 +88,7 @@ struct PreferencesView: View {
                     "辅助功能",
                     status: coordinator.hasAccessibilityPermission,
                     request: { coordinator.requestAccessibilityPermission() },
-                    help: "选中文本翻译依赖此权限。未授权时，选中文字后按快捷键会显示「未检测到选中文本」。"
+                    help: "划词翻译会话依赖此权限。先按快捷键开启会话，再在其他应用中划词；再次按快捷键会重新开始会话。"
                 )
                 permissionRow(
                     "屏幕录制",

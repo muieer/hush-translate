@@ -4,7 +4,8 @@ import KeyboardShortcuts
 
 /// 全局快捷键的命名（让设置面板能引用）
 extension KeyboardShortcuts.Name {
-    static let translateSelection  = Self("translateSelection")
+    // Keep the stored key so existing custom shortcuts survive the semantic change.
+    static let startTranslationSession = Self("translateSelection")
     static let translateScreenshot  = Self("translateScreenshot")
     static let translateClipboard   = Self("translateClipboard")
 }
@@ -13,7 +14,7 @@ extension KeyboardShortcuts.Name {
 @MainActor
 final class HotKeyService {
 
-    var onSelection: (() -> Void)?
+    var onSession: (() -> Void)?
     var onScreenshot: (() -> Void)?
     var onClipboard:  (() -> Void)?
 
@@ -24,10 +25,10 @@ final class HotKeyService {
         installed = true
 
         // 默认快捷键（用户在偏好设置里可改）
-        if KeyboardShortcuts.getShortcut(for: .translateSelection) == nil {
+        if KeyboardShortcuts.getShortcut(for: .startTranslationSession) == nil {
             KeyboardShortcuts.setShortcut(
                 KeyboardShortcuts.Shortcut(.d, modifiers: [.command, .option, .control]),
-                for: .translateSelection
+                for: .startTranslationSession
             )
         }
         if KeyboardShortcuts.getShortcut(for: .translateScreenshot) == nil {
@@ -43,8 +44,8 @@ final class HotKeyService {
             )
         }
 
-        KeyboardShortcuts.onKeyDown(for: .translateSelection) { [weak self] in
-            self?.onSelection?()
+        KeyboardShortcuts.onKeyDown(for: .startTranslationSession) { [weak self] in
+            self?.onSession?()
         }
         KeyboardShortcuts.onKeyDown(for: .translateScreenshot) { [weak self] in
             self?.onScreenshot?()

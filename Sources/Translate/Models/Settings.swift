@@ -33,6 +33,9 @@ enum OCRMode: String, CaseIterable, Identifiable {
 @MainActor
 final class SettingsStore: ObservableObject {
 
+    /// Session preset is in-memory until the settings UI is introduced.
+    @Published var defaultTranslationSession: TranslationSessionConfiguration = .defaultPreset
+
     @Published var apiBaseURL: String { didSet { defaults.set(apiBaseURL, forKey: "apiBaseURL") } }
     @Published var apiKey: String { didSet { defaults.set(apiKey, forKey: "apiKey") } }
     @Published var model: String { didSet { defaults.set(model, forKey: "model") } }

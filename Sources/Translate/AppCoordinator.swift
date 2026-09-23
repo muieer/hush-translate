@@ -6,7 +6,7 @@ import ScreenCaptureKit
 /// 全局 app 协调器。
 /// - 持有配置 & 服务
 /// - 注册全局快捷键回调
-/// - 接受"翻译选中文本 / 截图 / 剪贴板"三种 action
+/// - 接受"启动翻译会话 / 截图 / 剪贴板"三种 action
 /// - 显示 / 关闭悬浮结果窗
 @MainActor
 final class AppCoordinator: ObservableObject {
@@ -38,6 +38,13 @@ final class AppCoordinator: ObservableObject {
     let ocr        = OCRService()
     let translationSession = TranslationSessionStore()
 
+    private lazy var selectionTranslation = SelectionTranslationController(
+        session: translationSession,
+        monitor: selection,
+        configuration: { [weak self] in self?.settings.defaultTranslationSession ?? .defaultPreset },
+        translate: { [weak self] text in self?.runTranslate(text: text, imageData: nil, source: .selection) }
+    )
+
     private var resultPanel: FloatingPanelController<AnyView>?
     private var workingTask: Task<Void, Never>?
     private var lastSource: TranslationRequest.Source = .selection
@@ -46,7 +53,8 @@ final class AppCoordinator: ObservableObject {
     private var screenshotOverlay: ScreenshotOverlayController?
 
     private init() {
-        hotKey.onSelection = { [weak self] in self?.translateSelectionNow() }
+        _ = selectionTranslation
+        hotKey.onSession = { [weak self] in self?.startDefaultTranslationSession() }
         hotKey.onScreenshot = { [weak self] in self?.translateScreenshotNow() }
         hotKey.onClipboard  = { [weak self] in self?.translateClipboardNow() }
         hotKey.install()
@@ -67,43 +75,13 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - 三种入口 action
 
-    /// 翻译当前选中文本（直接读剪贴板，避免再走 SelectionMonitor 时序问题）
-    func translateSelectionNow() {
+    /// Starts a fresh preset session; never reads the current selection or toggles OFF.
+    func startDefaultTranslationSession() {
         guard ensurePermissionsForSelection() else { return }
-        // 先抓取剪贴板内容（选中文本就靠 cmd+c 读出来）
-        let pb = NSPasteboard.general
-        let old = pb.changeCount
-        simulateCopy()
-        // 重试读取：剪贴板更新可能延迟
-        tryReadSelection(pb: pb, oldChangeCount: old, retriesLeft: 5, delayMs: 100)
-    }
-
-    private func tryReadSelection(pb: NSPasteboard, oldChangeCount: Int, retriesLeft: Int, delayMs: UInt64) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(Int(delayMs))) { [weak self] in
-            guard let self = self else { return }
-            if pb.changeCount != oldChangeCount, let text = pb.string(forType: .string), !text.isEmpty {
-                self.runTranslate(text: text, imageData: nil, source: .selection)
-                return
-            }
-            if retriesLeft > 0 {
-                // 模拟一次没生效，再模拟一次（用户可能多按了快捷键/剪贴板延迟）
-                self.simulateCopy()
-                self.tryReadSelection(pb: pb, oldChangeCount: oldChangeCount, retriesLeft: retriesLeft - 1, delayMs: delayMs)
-            } else {
-                // fallback：剪贴板里可能有内容（用户之前 ⌘C 过）
-                if let text = pb.string(forType: .string), !text.isEmpty {
-                    self.runTranslate(text: text, imageData: nil, source: .clipboard)
-                    return
-                }
-                // 真没东西，给清晰提示
-                let hint: String
-                if self.hasAccessibilityPermission == false {
-                    hint = "请到 系统设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。"
-                } else {
-                    hint = "1) 确保已选中要翻译的文字\n2) 试一下手动按 ⌘C 后再按本快捷键\n3) 部分 app（如 Electron / 浏览器 / 远程桌面）不响应模拟 ⌘C\n4) 可改用 ⌃⌥⌘V（剪贴板翻译）：先 ⌘C 再按本快捷键"
-                }
-                self.showError("未检测到选中文本。\n\n\(hint)")
-            }
+        do {
+            try selectionTranslation.startDefaultSession()
+        } catch {
+            showError("翻译会话配置无效：次数和分钟数必须为正整数。")
         }
     }
 
@@ -223,10 +201,9 @@ final class AppCoordinator: ObservableObject {
 
     @discardableResult
     private func ensurePermissionsForSelection() -> Bool {
-        // 不预探测拦截（副作用探测法会误报 false，导致已授权用户每次都被弹窗）。
-        // 直接放行让 simulateCopy 真正执行，失败时由 tryReadSelection 给出提示。
+        // Only an explicit session start can prompt; passive selections remain silent.
         if AXIsProcessTrusted() == false {
-            showError("需要「辅助功能」权限才能翻译选中文本。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
+            showError("需要「辅助功能」权限才能开启划词翻译会话。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
             requestAccessibilityPermission()
             return false
         }
@@ -401,16 +378,7 @@ final class AppCoordinator: ObservableObject {
         return rep.representation(using: .png, properties: [:])
     }
 
-    private func simulateCopy() {
-        let src = CGEventSource(stateID: .hidSystemState)
-        guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: true),
-              let keyUp   = CGEvent(keyboardEventSource: src, virtualKey: 0x08, keyDown: false) else { return }
-        keyDown.flags = .maskCommand
-        keyUp.flags   = .maskCommand
-        keyDown.post(tap: .cghidEventTap)
-        usleep(20_000)
-        keyUp.post(tap: .cghidEventTap)
-    }
+
 }
 
 // MARK: - 权限工具
