@@ -56,15 +56,6 @@ struct PreferencesView: View {
 
     private var generalTab: some View {
         Form {
-            Section {
-                Picker("预设", selection: presetBinding) {
-                    Text("自定义").tag(Optional<String>.none)
-                    ForEach(SettingsStore.presets) { p in
-                        Text(p.name).tag(Optional(p.name))
-                    }
-                }
-            }
-
             Section("OpenAI 兼容接口") {
                 settingsRow("Base URL", field: .apiBaseURL)
                 settingsRow("API Key", field: .apiKey)
@@ -103,8 +94,8 @@ struct PreferencesView: View {
                     .foregroundColor(.secondary)
             }
             Section("会话参数") {
-                settingsRow("默认次数", field: .sessionCount, width: 100, unit: "次")
-                settingsRow("默认时长", field: .sessionMinutes, width: 100, unit: "分钟")
+                sessionSettingsRow("默认次数", field: .sessionCount, unit: "次")
+                sessionSettingsRow("默认时长", field: .sessionMinutes, unit: "分钟")
                 Text("菜单栏的「开启 N 次」与「开启 N 分钟」也使用这些值。修改设置将在下次启动会话时生效。")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -285,30 +276,6 @@ struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    // MARK: - 预设联动
-
-    private var presetBinding: Binding<String?> {
-        Binding<String?>(
-            get: { nil },
-            set: { name in
-                guard let name = name, let p = SettingsStore.presets.first(where: { $0.name == name }) else { return }
-                if let focusedField { commit(focusedField) }
-                focusedField = nil
-                drafts[.apiBaseURL] = p.base
-                statuses[.apiBaseURL] = .saved
-                settings.apiBaseURL = p.base
-                if !p.key.isEmpty {
-                    drafts[.apiKey] = p.key
-                    statuses[.apiKey] = .saved
-                    settings.apiKey = p.key
-                }
-                drafts[.model] = p.model
-                statuses[.model] = .saved
-                settings.model = p.model
-            }
-        )
-    }
-
     private func draftBinding(for field: Field) -> Binding<String> {
         Binding(
             get: { drafts[field] ?? "" },
@@ -322,16 +289,41 @@ struct PreferencesView: View {
         )
     }
 
-    private func settingsRow(_ title: String, field: Field, width: CGFloat? = nil, unit: String? = nil) -> some View {
+    private func settingsRow(_ title: String, field: Field, width: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             LabeledContent(title) {
                 HStack(spacing: 8) {
                     input(for: field)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: width)
-                    if let unit { Text(unit).foregroundColor(.secondary) }
                     saveStatus(for: field)
                 }
+            }
+            if case .invalid(let message) = statuses[field] {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+        }
+    }
+
+    private func sessionSettingsRow(_ title: String, field: Field, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Text(title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 8) {
+                    input(for: field)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.leading)
+                        .frame(width: 100)
+                    Spacer(minLength: 8)
+                    Text(unit)
+                        .foregroundColor(.secondary)
+                        .frame(width: 44, alignment: .trailing)
+                    saveStatus(for: field)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if case .invalid(let message) = statuses[field] {
                 Text(message)

@@ -142,24 +142,6 @@ final class SettingsStore: ObservableObject {
         )
     }
 
-    /// 常用预设
-    static let presets: [Preset] = [
-        Preset(name: "LM Studio (本地)", base: "http://localhost:1234/v1", model: "qwen2.5-7b-instruct", key: "lm-studio"),
-        Preset(name: "Ollama", base: "http://localhost:11434/v1", model: "qwen2.5:7b", key: "ollama"),
-        Preset(name: "OpenAI", base: "https://api.openai.com/v1", model: "gpt-4o-mini", key: ""),
-        Preset(name: "DeepSeek", base: "https://api.deepseek.com/v1", model: "deepseek-chat", key: ""),
-        Preset(name: "硅基流动 (SiliconFlow)", base: "https://api.siliconflow.cn/v1", model: "Qwen/Qwen2.5-7B-Instruct", key: ""),
-        Preset(name: "月之暗面 Moonshot", base: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k", key: ""),
-    ]
-
-    struct Preset: Identifiable, Hashable {
-        let name: String
-        let base: String
-        let model: String
-        let key: String
-        var id: String { name }
-    }
-
     /// 全部语言（标签、code）
     static let languages: [(label: String, code: String)] = [
         ("自动检测",       "auto"),
