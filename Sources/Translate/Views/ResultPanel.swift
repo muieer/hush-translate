@@ -214,7 +214,7 @@ struct ResultPanelView: View {
         case .screenshot: return "截图翻译"
         case .clipboard:  return "剪贴板翻译"
         case .selection:  return "选中文本翻译"
-        case .none:       return "Translate"
+        case .none:       return "HushTranslate"
         }
     }
 

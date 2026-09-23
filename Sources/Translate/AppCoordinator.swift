@@ -97,7 +97,7 @@ final class AppCoordinator: ObservableObject {
                 // 真没东西，给清晰提示
                 let hint: String
                 if self.hasAccessibilityPermission == false {
-                    hint = "请到 系统设置 → 隐私与安全性 → 辅助功能 勾选「Translate」。"
+                    hint = "请到 系统设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。"
                 } else {
                     hint = "1) 确保已选中要翻译的文字\n2) 试一下手动按 ⌘C 后再按本快捷键\n3) 部分 app（如 Electron / 浏览器 / 远程桌面）不响应模拟 ⌘C\n4) 可改用 ⌃⌥⌘V（剪贴板翻译）：先 ⌘C 再按本快捷键"
                 }
@@ -139,7 +139,7 @@ final class AppCoordinator: ObservableObject {
                 if let captureError = error as? ScreenshotService.CaptureError,
                    case .permissionDenied = captureError {
                     self.hasScreenCapturePermission = false
-                    self.showError("需要「屏幕录制」权限才能截图翻译。\n请到 系统设置 → 隐私与安全性 → 屏幕录制 勾选「Translate」，授权后重新触发本功能。")
+                    self.showError("需要「屏幕录制」权限才能截图翻译。\n请到 系统设置 → 隐私与安全性 → 屏幕录制 勾选「HushTranslate」，授权后重新触发本功能。")
                     self.requestScreenCapturePermission()
                 } else {
                     self.showError("截图失败：\(error.localizedDescription)")
@@ -173,7 +173,7 @@ final class AppCoordinator: ObservableObject {
             .environmentObject(self)
         let host = NSHostingController(rootView: view)
         let win = NSWindow(contentViewController: host)
-        win.title = "Translate 设置"
+        win.title = "HushTranslate 设置"
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         win.setContentSize(NSSize(width: 600, height: 480))
         win.center()
@@ -225,7 +225,7 @@ final class AppCoordinator: ObservableObject {
         // 不预探测拦截（副作用探测法会误报 false，导致已授权用户每次都被弹窗）。
         // 直接放行让 simulateCopy 真正执行，失败时由 tryReadSelection 给出提示。
         if AXIsProcessTrusted() == false {
-            showError("需要「辅助功能」权限才能翻译选中文本。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「Translate」。\n\n授权后请重新打开本 App。")
+            showError("需要「辅助功能」权限才能翻译选中文本。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
             requestAccessibilityPermission()
             return false
         }

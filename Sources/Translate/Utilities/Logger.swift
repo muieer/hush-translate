@@ -2,7 +2,7 @@ import Foundation
 import os.log
 
 enum Log {
-    private static let subsystem = "com.translate.app"
+    private static let subsystem = "com.muieer.hushtranslate"
 
     static let app     = Logger(subsystem: subsystem, category: "app")
     static let api     = Logger(subsystem: subsystem, category: "api")

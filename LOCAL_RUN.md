@@ -6,10 +6,10 @@
 
 ```bash
 ./scripts/make-app.sh debug
-open build/Translate.app --args --show-settings
+open build/HushTranslate.app --args --show-settings
 ```
 
-应用常驻菜单栏。启动参数只在进程新启动时生效；已有 Translate 运行时应先退出旧进程。
+应用常驻菜单栏。启动参数只在进程新启动时生效；已有 HushTranslate 运行时应先退出旧进程。
 发布配置构建使用 `./scripts/make-app.sh release`。本机和 GitHub Actions 共用该脚本。
 
 ## 工具链
@@ -53,7 +53,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh d
 
 - Debug 构建、打包、严格签名验证通过。
 - 仅复制源码、锁文件和脚本到全新临时目录，禁用共享依赖仓库缓存后，Release 构建及严格签名验证通过。
-- 已将该 Release 应用复制回 `build/Translate.app`，删除整个临时构建目录后启动，进程保持运行，主线程处于正常 AppKit 事件循环，未发现新的崩溃报告。
+- 已将该 Release 应用复制回当时的 `build/Translate.app`，删除整个临时构建目录后启动，进程保持运行，主线程处于正常 AppKit 事件循环，未发现新的崩溃报告。
 - 应用启动后再次执行严格签名验证通过，应用根目录无资源软链接。
 - 桌面自动化读取设置窗口超时，因此本次未通过 UI 自动化复验设置标签和快捷键录制；翻译及交互验收沿用用户先前的验证，后续功能改动再按需验证。
 - 旧 SwiftPM 构建目录、本地依赖镜像源码、预览补丁和本次临时诊断文件已清理。

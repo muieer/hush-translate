@@ -73,7 +73,7 @@ else
     SIGNING_DESCRIPTION="ad-hoc"
 fi
 
-APP_NAME=Translate
+APP_NAME=HushTranslate
 DERIVED_DATA="$PWD/.build/xcode"
 PRODUCTS="$DERIVED_DATA/Build/Products/$CONFIGURATION"
 APP_BUNDLE="$PWD/build/$APP_NAME.app"
@@ -84,7 +84,7 @@ echo "==> 构建 ${CONFIGURATION}（使用锁定依赖）"
 echo "==> 签名: $SIGNING_DESCRIPTION"
 # Xcode 生成的资源 accessor 会查 Contents/Resources；swift build 的产物不可替代。
 # 先无签名编译，组装完整 .app 后统一从内到外签名。
-xcodebuild -quiet -scheme Translate -configuration "$CONFIGURATION" \
+xcodebuild -quiet -scheme HushTranslate -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
     -clonedSourcePackagesDirPath "$PWD/.build/xcode-packages" \
@@ -135,4 +135,4 @@ if [[ "$MODE" == "debug" ]]; then
 fi
 
 echo "完成: $APP_BUNDLE"
-echo "启动: open build/Translate.app --args --show-settings"
+echo "启动: open build/HushTranslate.app --args --show-settings"

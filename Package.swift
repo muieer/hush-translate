@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Translate",
+    name: "HushTranslate",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "Translate", targets: ["Translate"])
+        .executable(name: "HushTranslate", targets: ["HushTranslate"])
     ],
     dependencies: [
         // 全局快捷键注册（基于 Carbon RegisterEventHotKey，不需辅助功能权限）
@@ -15,7 +15,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Translate",
+            name: "HushTranslate",
             dependencies: [
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
             ],

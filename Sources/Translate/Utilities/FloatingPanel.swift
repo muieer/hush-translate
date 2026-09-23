@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// 不参与 Mission Control / 不抢焦点的悬浮窗。
-/// 仿 bob 风格：磨砂背景 + 圆角 + 可切换置顶。
+/// 悬浮面板：磨砂背景 + 圆角 + 可切换置顶。
 /// - pinned = true：浮在所有窗口之上（切应用也不被覆盖）
 /// - pinned = false：弹出时浮在最前，用户点向结果窗外的任何地方即降到普通层级可被覆盖
 @MainActor
