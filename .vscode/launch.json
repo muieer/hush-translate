@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:HushTranslate}",
+            "name": "Debug Translate",
+            "target": "Translate",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Translate"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:HushTranslate}",
+            "name": "Release Translate",
+            "target": "Translate",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Translate"
+        }
+    ]
+}
