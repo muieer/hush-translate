@@ -69,11 +69,23 @@ struct StatusBarMenu: View {
 struct SessionStatusLabel: View {
     @ObservedObject var presentation: SessionPresentation
 
+    private static let menuBarImage: NSImage? = {
+        guard let url = Bundle.module.url(forResource: "MenuBarTemplate", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        // MenuBarExtra bridges to AppKit, which uses the image's intrinsic point size.
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
+    }()
+
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: presentation.status.isActive ? "character.bubble.fill" : "character.bubble")
-            if !presentation.status.badge.isEmpty {
-                Text(presentation.status.badge)
+        Group {
+            if let image = Self.menuBarImage {
+                Image(nsImage: image)
+                    .renderingMode(.template)
+                    .frame(width: 18, height: 18)
+            } else {
+                Image(systemName: "character.bubble")
             }
         }
         .accessibilityLabel("划词翻译：\(presentation.status.title)")

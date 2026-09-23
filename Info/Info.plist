@@ -14,6 +14,8 @@
     <string>HushTranslate</string>
     <key>CFBundleDisplayName</key>
     <string>HushTranslate</string>
+    <key>CFBundleIconFile</key>
+    <string>HushTranslate.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

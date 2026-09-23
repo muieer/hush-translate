@@ -107,6 +107,21 @@ cp "$PRODUCTS/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info/Info.plist "$APP_BUNDLE/Contents/Info.plist"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+# 从已确认的 1024px 图稿生成 macOS 所需的多尺寸 .icns。
+ICON_SOURCE="$PWD/design/icons/app-icon.png"
+ICON_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hushtranslate-icon.XXXXXX")
+ICONSET_DIR="$ICON_WORK_DIR/HushTranslate.iconset"
+mkdir -p "$ICONSET_DIR"
+trap 'rm -rf "$ICON_WORK_DIR"' EXIT
+for size in 16 32 128 256 512; do
+    sips -s format png -z "$size" "$size" "$ICON_SOURCE" \
+        --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
+    retina_size=$((size * 2))
+    sips -s format png -z "$retina_size" "$retina_size" "$ICON_SOURCE" \
+        --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET_DIR" -o "$APP_BUNDLE/Contents/Resources/$APP_NAME.icns"
+
 sign_path() {
     local path="$1"
     if [[ "$SIGNING_IDENTITY" == "-" ]]; then
