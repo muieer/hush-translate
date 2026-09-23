@@ -338,29 +338,30 @@ final class AppCoordinator: ObservableObject {
                 await MainActor.run {
                     self.isWorking = false
                     self.statusMessage = nil
-                    self.showError(error.localizedDescription)
+                    self.showError(error.localizedDescription, keepPosition: true)
                 }
             }
         }
     }
 
-    private func showError(_ msg: String) {
+    private func showError(_ msg: String, keepPosition: Bool = false) {
         errorMessage = msg
         isWorking = false
         statusMessage = nil
-        showResultPanel()
+        showResultPanel(keepPosition: keepPosition)
     }
 
     // MARK: - 悬浮窗
 
-    func showResultPanel() {
+    func showResultPanel(keepPosition: Bool = false) {
         if resultPanel == nil {
             resultPanel = FloatingPanelController<AnyView>()
         }
         resultPanel?.show(
             { AnyView(ResultPanelView(coordinator: self)) },
             size: NSSize(width: 440, height: 160),
-            pinned: resultPanelPinned
+            pinned: resultPanelPinned,
+            keepPosition: keepPosition
         )
     }
 
@@ -370,7 +371,8 @@ final class AppCoordinator: ObservableObject {
             { AnyView(ResultPanelView(coordinator: self)) },
             size: NSSize(width: 440, height: 160),
             pinned: resultPanelPinned,
-            keepPinned: true
+            keepPinned: true,
+            keepPosition: true
         )
     }
 
