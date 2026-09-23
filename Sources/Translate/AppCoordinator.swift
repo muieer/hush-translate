@@ -153,6 +153,7 @@ final class AppCoordinator: ObservableObject {
     // MARK: - 设置
 
     private var settingsWindow: NSWindow?
+    private var settingsCloseDelegate: SettingsCloseDelegate?
 
     func openPreferences() {
         // 不依赖 SwiftUI Settings scene（MenuBarExtra .menu 下 sendAction 不可靠）
@@ -162,7 +163,8 @@ final class AppCoordinator: ObservableObject {
             win.makeKeyAndOrderFront(nil)
             return
         }
-        let view = PreferencesView(settings: settings)
+        let editSession = PreferencesEditSession()
+        let view = PreferencesView(settings: settings, editSession: editSession)
             .environmentObject(self)
         let host = NSHostingController(rootView: view)
         let win = NSWindow(contentViewController: host)
@@ -171,17 +173,15 @@ final class AppCoordinator: ObservableObject {
         win.setContentSize(NSSize(width: 600, height: 480))
         win.center()
         win.isReleasedWhenClosed = false
-        // 关闭时只是隐藏，不销毁
-        let closeObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification,
-            object: win,
-            queue: .main
-        ) { [weak self] _ in
+        // 在焦点变化之前标记关窗，让输入框丢弃尚未确认的草稿。
+        let closeDelegate = SettingsCloseDelegate(editSession: editSession) { [weak self] in
             Task { @MainActor [weak self] in
                 self?.settingsWindow = nil
+                self?.settingsCloseDelegate = nil
             }
         }
-        _ = closeObserver
+        win.delegate = closeDelegate
+        settingsCloseDelegate = closeDelegate
         settingsWindow = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
@@ -395,6 +395,32 @@ final class AppCoordinator: ObservableObject {
     }
 
 
+}
+
+@MainActor
+final class PreferencesEditSession {
+    var isClosing = false
+}
+
+@MainActor
+private final class SettingsCloseDelegate: NSObject, NSWindowDelegate {
+    private let editSession: PreferencesEditSession
+    private let onDidClose: () -> Void
+
+    init(editSession: PreferencesEditSession, onDidClose: @escaping () -> Void) {
+        self.editSession = editSession
+        self.onDidClose = onDidClose
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        editSession.isClosing = true
+        return true
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        editSession.isClosing = true
+        onDidClose()
+    }
 }
 
 // MARK: - 权限工具
