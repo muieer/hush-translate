@@ -9,6 +9,7 @@ struct PreferencesView: View {
     var body: some View {
         TabView {
             generalTab.tabItem { Label("通用", systemImage: "gearshape") }
+            sessionTab.tabItem { Label("翻译会话", systemImage: "character.cursor.ibeam") }
             hotkeyTab.tabItem { Label("快捷键", systemImage: "keyboard") }
             screenshotTab.tabItem { Label("截图翻译", systemImage: "camera.viewfinder") }
             advancedTab.tabItem { Label("高级", systemImage: "slider.horizontal.3") }
@@ -65,13 +66,38 @@ struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
+    private var sessionTab: some View {
+        Form {
+            Section("快捷键默认启动") {
+                Picker("会话类型", selection: $settings.defaultSessionMode) {
+                    ForEach(SessionMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                Text("按快捷键会启动新的默认会话，再次按下会重新开始。开启后，在其他应用中划词即可翻译；关闭会话请使用菜单栏。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Section("会话参数") {
+                PositiveSessionField(title: "默认次数", unit: "次", value: settings.sessionCount,
+                                     save: { settings.setSessionCount($0) })
+                PositiveSessionField(title: "默认时长", unit: "分钟", value: settings.sessionMinutes,
+                                     save: { settings.setSessionMinutes($0) })
+                Text("菜单栏的「开启 N 次」与「开启 N 分钟」也使用这些值。修改设置将在下次启动会话时生效。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
     // MARK: - 快捷键
 
     private var hotkeyTab: some View {
         Form {
             Section("全局快捷键（在系统任意位置生效）") {
                 KeyboardShortcuts.Recorder(for: .startTranslationSession) {
-                    Text("开启翻译会话：")
+                    Text("启动翻译会话：")
                 }
                 KeyboardShortcuts.Recorder(for: .translateScreenshot) {
                     Text("截图翻译：")
@@ -79,7 +105,7 @@ struct PreferencesView: View {
                 KeyboardShortcuts.Recorder(for: .translateClipboard) {
                     Text("剪贴板翻译：")
                 }
-                Text("默认：⌃⌥⌘D 开启会话 / ⌘⌥⇧S 截图 / ⌃⌥⌘V 剪贴板。可在录制框中按下新组合键覆盖。")
+                Text("默认：⌃⌥⌘D 启动默认会话 / ⌘⌥⇧S 截图 / ⌃⌥⌘V 剪贴板。可在录制框中按下新组合键覆盖。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -248,5 +274,41 @@ struct PreferencesView: View {
                 settings.model = p.model
             }
         )
+    }
+}
+
+/// Keep incomplete input local; only valid positive integers reach persistent settings.
+private struct PositiveSessionField: View {
+    let title: String
+    let unit: String
+    let value: Int
+    let save: (Int) -> Void
+    @State private var draft = ""
+
+    private var parsed: Int? {
+        guard !draft.isEmpty, draft.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let number = Int(draft), number > 0 else { return nil }
+        return number
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title) {
+                TextField(title, text: $draft)
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                Text(unit)
+            }
+            if parsed == nil {
+                Text("请输入有效正整数；当前仍使用 \(value) \(unit)。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .onAppear { draft = String(value) }
+        .onChange(of: draft) { _, _ in
+            if let number = parsed { save(number) }
+        }
     }
 }

@@ -5,12 +5,29 @@ struct StatusBarMenu: View {
     /// 直接传 coordinator，不依赖 EnvironmentObject（MenuBarExtra .menu 样式对 EnvironmentObject 兼容性差）
     let coordinator: AppCoordinator
 
+    @ObservedObject private var presentation: SessionPresentation
+    @ObservedObject private var settings: SettingsStore
+
+    init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
+        self.presentation = coordinator.sessionPresentation
+        self.settings = coordinator.settings
+    }
+
     var body: some View {
-        Button {
-            coordinator.startDefaultTranslationSession()
-        } label: {
-            Label("开启翻译会话", systemImage: "character.cursor.ibeam")
+        Text("划词翻译：\(presentation.status.title)")
+
+        Button("关闭会话") { coordinator.closeTranslationSession() }
+            .disabled(!presentation.status.isActive)
+        Button("持续开启") { coordinator.startTranslationSession(.always) }
+        Button("开启 \(settings.sessionCount) 次") {
+            coordinator.startTranslationSession(.count(settings.sessionCount))
         }
+        Button("开启 \(settings.sessionMinutes) 分钟") {
+            coordinator.startTranslationSession(.timer(minutes: settings.sessionMinutes))
+        }
+
+        Divider()
 
         Button {
             coordinator.translateScreenshotNow()
@@ -45,5 +62,21 @@ struct StatusBarMenu: View {
         } label: {
             Label("退出", systemImage: "power")
         }
+    }
+}
+
+/// Observes the same presentation as the open menu, including while the menu is closed.
+struct SessionStatusLabel: View {
+    @ObservedObject var presentation: SessionPresentation
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: presentation.status.isActive ? "character.bubble.fill" : "character.bubble")
+            if !presentation.status.badge.isEmpty {
+                Text(presentation.status.badge)
+            }
+        }
+        .accessibilityLabel("划词翻译：\(presentation.status.title)")
+        .help("划词翻译：\(presentation.status.title)")
     }
 }

@@ -9,7 +9,7 @@ struct HushTranslateApp: App {
             StatusBarMenu(coordinator: coordinator)
                 .task { coordinator.bootstrap() }
         } label: {
-            Image(systemName: "character.bubble.fill")
+            SessionStatusLabel(presentation: coordinator.sessionPresentation)
         }
         .menuBarExtraStyle(.menu)
         // 不依赖 SwiftUI Settings scene（MenuBarExtra .menu 下 sendAction 不可靠）

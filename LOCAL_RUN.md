@@ -60,7 +60,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 ```
 
 `TranslationSessionTests` 使用可控时间和到期回调验证状态转换，不需要真实等待数分钟。
-默认配置为 `COUNT(3)`，保存在内存设置中，不持久化。应用启动时 Session 为 OFF；第二阶段已接入划词监听，`⌃⌥⌘D` 与菜单中的“开启翻译会话”均启动一个新的默认 Session。完整会话控制和状态 UI 留到第三阶段。
+默认配置为 `COUNT(3)`。第三阶段新增“翻译会话”设置页，将默认模式、次数和分钟数保存到 UserDefaults；应用重新启动后恢复配置，但运行中的 Session 不持久化，启动时仍为 OFF。`⌃⌥⌘D` 启动新的默认 Session；菜单栏支持主动关闭、持续开启、开启配置次数和开启配置分钟数。菜单栏图标及下拉菜单直接观察会话状态，TIMER 的剩余分钟向上取整，每分钟刷新一次显示，到期关闭仍由 Session 核心处理。
 
 `SelectionTranslationTests` 验证 Session 与捕获的连接、过期和替换时的迟到回调、快捷键对应的默认启动行为及候选鼠标手势。测试不操作系统剪贴板，也不执行 GUI 交互。
 
@@ -83,3 +83,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 - 两次 Debug 构建均通过 `codesign --verify --deep --strict`；两次产物的 `Identifier`、`Authority` 和 `TeamIdentifier` 完全一致。
 - 显式指定证书名称或 SHA-1 构建也保持相同代码身份；无效的显式身份会在构建前被拒绝。
 - Release 构建通过，产物仍为 ad-hoc 签名。
+
+## 第三阶段验证（2026-09-23）
+
+- 34 项测试全部通过（原有 Session 核心、Selection 集成及新增 5 项设置/状态测试）。
+- 新增测试验证：默认模式与参数重新读取、无效值拒绝及损坏配置回退、快捷键使用最新配置并重新开始、菜单展示随会话状态变化、剩余分钟边界。
+- 标准 Debug 构建、打包与严格签名验证通过，产物为 `build/HushTranslate.app`。
+- 截图和剪贴板菜单继续调用原有独立入口，不经过 Session 判定；相关服务及结果面板未修改。
+- 桌面自动化读取应用超时，未完成真实菜单点击、进程重启后的界面复验及模型端到端翻译验收。配置重载与状态更新已经自动化测试验证。
+- 现有 `SettingsStore.languages` actor 隔离及旧测试 weak 变量告警仍存在；本阶段未扩展处理。
