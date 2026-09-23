@@ -39,7 +39,8 @@ macOS 原生翻译软件，仿 Bob 风格。SwiftUI + AppKit 实现。
 ## 快速开始
 
 ```bash
-# 1. 构建开发版本（自动解析锁定依赖、打包并验证签名）
+# 1. 构建开发版本（需要钥匙串中存在 Apple Development 证书）
+#    Debug 使用稳定开发签名，减少重建后重复授权辅助功能/屏幕录制权限
 ./scripts/make-app.sh debug
 
 # 2. 启动；默认仅显示菜单栏入口
@@ -59,6 +60,11 @@ open build/Translate.app --args --show-settings
 
 脚本优先使用 `DEVELOPER_DIR` 或已选择的完整 Xcode；系统仍选择 Command Line Tools 时，
 自动使用 `/Applications/Xcode.app`，不会修改系统全局工具链设置。
+
+Debug 构建会自动选择钥匙串中的 `Apple Development` 证书。若存在多个证书，可通过
+`HUSHTRANSLATE_SIGNING_IDENTITY` 指定名称或 SHA-1。首次从旧 ad-hoc 构建切换后可能需要
+重新授权一次辅助功能与屏幕录制权限，后续保持相同 Bundle ID 和签名身份即可持续复用权限。
+
 详细环境与验证记录见 [LOCAL_RUN.md](LOCAL_RUN.md)。
 
 ## 第一次使用

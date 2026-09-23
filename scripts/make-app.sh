@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # 使用完整 Xcode 构建 Swift package，并打包可独立运行的 macOS 应用。
 # 用法：./scripts/make-app.sh [debug|release]
+#
+# Debug 构建必须使用稳定的 Apple Development 签名，避免每次重建后
+# macOS TCC（辅助功能 / 屏幕录制）把应用视为新的代码身份。
+# 如需显式指定签名身份：
+#   HUSHTRANSLATE_SIGNING_IDENTITY="<identity name or SHA-1>" ./scripts/make-app.sh debug
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -32,6 +37,42 @@ if [[ -f .swiftpm/configuration/mirrors.json ]]; then
     exit 1
 fi
 
+# Debug 使用稳定的 Apple Development 代码身份。
+# Release 暂时维持原有 ad-hoc 行为；正式分发签名与公证另行处理。
+if [[ "$MODE" == "debug" ]]; then
+    REQUESTED_IDENTITY="${HUSHTRANSLATE_SIGNING_IDENTITY:-}"
+    SIGNING_IDENTITY=$(
+        security find-identity -v -p codesigning 2>/dev/null |
+            awk -v requested="$REQUESTED_IDENTITY" '
+                /"Apple Development:/ {
+                    name = $0
+                    sub(/^[^"]*"/, "", name)
+                    sub(/".*$/, "", name)
+                    if (requested == "" || requested == $2 || requested == name) {
+                        print $2
+                        exit
+                    }
+                }'
+    )
+    if [[ -z "$SIGNING_IDENTITY" ]]; then
+        cat >&2 <<'EOF'
+Debug 构建需要有效的 Apple Development 签名证书，且显式指定的身份必须与其名称或 SHA-1 匹配。
+
+请先在 Xcode → Settings → Accounts 登录 Apple ID，并确保钥匙串中存在 Apple Development 证书。
+可用以下命令检查：
+  security find-identity -v -p codesigning
+
+如果存在多个开发证书，可显式指定：
+  HUSHTRANSLATE_SIGNING_IDENTITY="<identity name or SHA-1>" ./scripts/make-app.sh debug
+EOF
+        exit 1
+    fi
+    SIGNING_DESCRIPTION="Apple Development"
+else
+    SIGNING_IDENTITY="-"
+    SIGNING_DESCRIPTION="ad-hoc"
+fi
+
 APP_NAME=Translate
 DERIVED_DATA="$PWD/.build/xcode"
 PRODUCTS="$DERIVED_DATA/Build/Products/$CONFIGURATION"
@@ -40,7 +81,9 @@ LOCK_BEFORE=$(shasum -a 256 Package.resolved)
 
 echo "==> Xcode: $DEVELOPER_DIR"
 echo "==> 构建 ${CONFIGURATION}（使用锁定依赖）"
+echo "==> 签名: $SIGNING_DESCRIPTION"
 # Xcode 生成的资源 accessor 会查 Contents/Resources；swift build 的产物不可替代。
+# 先无签名编译，组装完整 .app 后统一从内到外签名。
 xcodebuild -quiet -scheme Translate -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
@@ -64,15 +107,32 @@ cp "$PRODUCTS/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info/Info.plist "$APP_BUNDLE/Contents/Info.plist"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+sign_path() {
+    local path="$1"
+    if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+        codesign --force --sign - "$path"
+    else
+        # 本地开发签名不需要可信时间戳，避免构建依赖时间戳服务网络状态。
+        codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$path"
+    fi
+}
+
 # Xcode 的资源 bundle 使用标准 Contents 结构，可从内到外签名。
 for resource in "$PRODUCTS/"*.bundle; do
     [[ -d "$resource" ]] || continue
     destination="$APP_BUNDLE/Contents/Resources/$(basename "$resource")"
     ditto "$resource" "$destination"
-    codesign --force --sign - "$destination"
+    sign_path "$destination"
 done
-codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-codesign --force --sign - "$APP_BUNDLE"
+sign_path "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+sign_path "$APP_BUNDLE"
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+
+if [[ "$MODE" == "debug" ]]; then
+    echo "==> Debug 代码身份"
+    codesign -d --verbose=2 "$APP_BUNDLE" 2>&1 |
+        grep -E '^(Identifier|Authority|TeamIdentifier)=' || true
+fi
+
 echo "完成: $APP_BUNDLE"
 echo "启动: open build/Translate.app --args --show-settings"
