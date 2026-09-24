@@ -15,7 +15,7 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - 状态
 
-    @Published var settings = SettingsStore()
+    @Published var settings: SettingsStore
 
     @Published var lastResult: TranslationResult?
     @Published var isWorking = false
@@ -31,7 +31,7 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - 服务
 
-    let translate  = TranslateService()
+    private let performTranslation: (TranslationRequest, TranslateConfig) async throws -> String
     let hotKey     = HotKeyService()
     let selection  = SelectionMonitor()
     let screenshot = ScreenshotService()
@@ -48,12 +48,23 @@ final class AppCoordinator: ObservableObject {
 
     private var resultPanel: FloatingPanelController<AnyView>?
     private var workingTask: Task<Void, Never>?
-    private var lastSource: TranslationRequest.Source = .selection
+    private var lastRequest: TranslationRequest?
     /// 截图选区控制器：必须持有，否则 onResult 闭包里的 weak self 在选区完成前
     /// 就随 controller 释放，导致 overlay 窗口 orderOut 不执行、画面卡在灰色选区态。
     private var screenshotOverlay: ScreenshotOverlayController?
 
-    private init() {
+    /// Inject the translation operation without registering shortcuts or showing windows.
+    init(settings: SettingsStore,
+         translate: @escaping (TranslationRequest, TranslateConfig) async throws -> String) {
+        self.settings = settings
+        self.performTranslation = translate
+    }
+
+    private convenience init() {
+        let service = TranslateService()
+        self.init(settings: SettingsStore()) { request, config in
+            try await service.translate(request, config: config)
+        }
         _ = selectionTranslation
         hotKey.onSession = { [weak self] in self?.startDefaultTranslationSession() }
         hotKey.onScreenshot = { [weak self] in self?.translateScreenshotNow() }
@@ -304,10 +315,27 @@ final class AppCoordinator: ObservableObject {
         runTranslate(text: "", imageData: data, source: .screenshot, presentWindow: false)
     }
 
-    private func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true) {
+    func changeResultSourceLanguage(_ code: String) {
+        guard settings.sourceLanguage != code else { return }
+        settings.sourceLanguage = code
+        retranslateLastInput()
+    }
+
+    func changeResultTargetLanguage(_ code: String) {
+        guard settings.targetLanguage != code else { return }
+        settings.targetLanguage = code
+        retranslateLastInput()
+    }
+
+    private func retranslateLastInput() {
+        guard let request = lastRequest else { return }
+        runTranslate(text: request.text, imageData: request.imageData,
+                     source: request.source, presentWindow: false)
+    }
+
+    func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true) {
         // cancel 旧任务
         workingTask?.cancel()
-        lastSource = source
 
         isWorking = true
         errorMessage = nil
@@ -322,21 +350,25 @@ final class AppCoordinator: ObservableObject {
             source: source
         )
 
+        lastRequest = req
+        let config = settings.snapshot()
+
         workingTask = Task { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, !Task.isCancelled else { return }
             let start = Date()
             do {
-                let translated = try await self.translate.translate(req, config: self.settings.snapshot())
+                let translated = try await self.performTranslation(req, config)
                 if Task.isCancelled { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.isWorking = false
                     self.statusMessage = nil
                     let result = TranslationResult(
                         original: text,
                         translated: translated,
-                        sourceLang: self.settings.sourceLanguage,
-                        targetLang: self.settings.targetLanguage,
-                        model: self.settings.model,
+                        sourceLang: req.sourceLang,
+                        targetLang: req.targetLang,
+                        model: config.model,
                         latency: Date().timeIntervalSince(start),
                         timestamp: Date(),
                         source: source
@@ -347,9 +379,11 @@ final class AppCoordinator: ObservableObject {
             } catch {
                 if Task.isCancelled { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.isWorking = false
                     self.statusMessage = nil
-                    self.showError(error.localizedDescription, keepPosition: true)
+                    self.errorMessage = error.localizedDescription
+                    self.refreshResultPanel()
                 }
             }
         }

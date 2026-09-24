@@ -4,8 +4,14 @@ import AppKit
 /// 翻译结果悬浮窗内容
 struct ResultPanelView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject private var settings: SettingsStore
     @State private var copiedTranslation = false
     @State private var copiedOriginal = false
+
+    init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
+        self.settings = coordinator.settings
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -24,29 +30,24 @@ struct ResultPanelView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: sourceIcon)
-                .foregroundColor(.accentColor)
-                .imageScale(.medium)
-            Text(sourceLabel)
-                .font(.system(size: 12, weight: .semibold))
             if let m = coordinator.lastResult?.model {
-                Text("· \(m)")
+                Text(m)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
             Spacer()
             languageMenu(
-                code: coordinator.settings.sourceLanguage,
+                code: settings.sourceLanguage,
                 includeAuto: true
-            ) { coordinator.settings.sourceLanguage = $0 }
+            ) { coordinator.changeResultSourceLanguage($0) }
             Image(systemName: "arrow.right")
                 .font(.system(size: 9))
                 .foregroundColor(.secondary)
             languageMenu(
-                code: coordinator.settings.targetLanguage,
+                code: settings.targetLanguage,
                 includeAuto: false
-            ) { coordinator.settings.targetLanguage = $0 }
+            ) { coordinator.changeResultTargetLanguage($0) }
         }
     }
 
@@ -60,13 +61,9 @@ struct ResultPanelView: View {
                 }
             }
         } label: {
-            HStack(spacing: 2) {
-                Text(langLabel(code))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8))
-            }
-            .font(.system(size: 10))
-            .foregroundColor(.secondary)
+            Text(langLabel(code))
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -198,23 +195,6 @@ struct ResultPanelView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             self[keyPath: keyPath] = false
-        }
-    }
-
-    private var sourceIcon: String {
-        switch coordinator.lastResult?.source {
-        case .screenshot: return "camera.viewfinder"
-        case .clipboard:  return "doc.on.clipboard"
-        case .selection, .none: return "character.cursor.ibeam"
-        }
-    }
-
-    private var sourceLabel: String {
-        switch coordinator.lastResult?.source {
-        case .screenshot: return "截图翻译"
-        case .clipboard:  return "剪贴板翻译"
-        case .selection:  return "选中文本翻译"
-        case .none:       return "HushTranslate"
         }
     }
 
