@@ -22,7 +22,20 @@ HushTranslate 面向以自主阅读为主、偶尔需要翻译的用户，提供
 - **菜单栏与快捷键**：查看会话状态、开启或关闭会话，并自定义快捷键。
 - **剪贴板翻译**：直接翻译已复制的文字。
 
-## 构建与使用
+## 安装与首次运行
+
+HushTranslate 免费分发，适用于 Apple Silicon Mac，要求 macOS 14 或更高版本。发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
+
+1. 从 [GitHub Releases](https://github.com/muieer/hush-translate/releases) 下载 `HushTranslate-x.x.x.zip`。
+2. 解压 ZIP 文件。
+3. 建议将 `HushTranslate.app` 移至 `/Applications`（应用程序）文件夹，也可放在其他位置。
+4. 双击应用。首次运行时，macOS Gatekeeper 可能阻止打开；此时前往「系统设置 → 隐私与安全性」，找到 HushTranslate 的提示，点击「仍要打开」，并按系统提示确认。
+5. 启动后，根据系统提示和所需功能授予「辅助功能」「屏幕录制」等权限。应用常驻菜单栏。
+6. 在应用设置中自行配置模型服务的 API Key。API Key 由用户自行从服务商获取，API 使用费用由用户自己的服务商账号承担；本地模型按其服务要求配置。
+
+具体配置见下方「首次使用」和 [使用说明](USER_GUIDE.md)。
+
+## 从源码构建与使用
 
 ### 环境要求
 

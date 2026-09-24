@@ -6,6 +6,7 @@
 # macOS TCC（辅助功能 / 屏幕录制）把应用视为新的代码身份。
 # 如需显式指定签名身份：
 #   HUSHTRANSLATE_SIGNING_IDENTITY="<identity name or SHA-1>" ./scripts/make-app.sh debug
+# CI 通过 HUSHTRANSLATE_BUILD_NUMBER 覆盖产物构建号，不修改源 Info.plist。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,6 +16,12 @@ case "$MODE" in
     release) CONFIGURATION=Release ;;
     *) echo "用法: $0 [debug|release]" >&2; exit 1 ;;
 esac
+
+BUILD_NUMBER="${HUSHTRANSLATE_BUILD_NUMBER:-}"
+if [[ -n "$BUILD_NUMBER" && ! "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+    echo "HUSHTRANSLATE_BUILD_NUMBER 必须为正整数。" >&2
+    exit 1
+fi
 
 # 尊重显式指定的工具链；系统仍选择 CLT 时使用标准位置的完整 Xcode。
 if [[ -z "${DEVELOPER_DIR:-}" ]]; then
@@ -38,7 +45,7 @@ if [[ -f .swiftpm/configuration/mirrors.json ]]; then
 fi
 
 # Debug 使用稳定的 Apple Development 代码身份。
-# Release 暂时维持原有 ad-hoc 行为；正式分发签名与公证另行处理。
+# Release 使用免费的 ad-hoc 签名，通过 GitHub Releases 分发，不做 Apple 公证。
 if [[ "$MODE" == "debug" ]]; then
     REQUESTED_IDENTITY="${HUSHTRANSLATE_SIGNING_IDENTITY:-}"
     SIGNING_IDENTITY=$(
@@ -105,6 +112,11 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 cp "$PRODUCTS/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info/Info.plist "$APP_BUNDLE/Contents/Info.plist"
+if [[ -n "$BUILD_NUMBER" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
+fi
+echo "==> Version: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")"
+echo "==> Build: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # 从已确认的 1024px 图稿生成 macOS 所需的多尺寸 .icns。

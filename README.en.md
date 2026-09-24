@@ -22,7 +22,20 @@ For example, enable translation for the next 3 selections, work through a few di
 - **Menu bar and shortcuts**: check session status, start or close sessions, and customize keyboard shortcuts.
 - **Clipboard translation**: translate text you have already copied.
 
-## Build and use
+## Installation and first launch
+
+HushTranslate is distributed free of charge for Apple Silicon Macs running macOS 14 or later. Release builds use ad-hoc signing, without Apple Developer ID signing or Apple Notarization.
+
+1. Download `HushTranslate-x.x.x.zip` from [GitHub Releases](https://github.com/muieer/hush-translate/releases).
+2. Extract the ZIP file.
+3. Move `HushTranslate.app` to `/Applications` (recommended, but optional).
+4. Double-click the app. macOS Gatekeeper may block the first launch. If this happens, open System Settings → Privacy & Security, find the HushTranslate message, click Open Anyway, and follow the confirmation prompts.
+5. After launch, follow the system prompts to grant Accessibility, Screen Recording, and any other permissions needed for the features you use. The app runs in the menu bar.
+6. Configure your model service's API Key in the app settings. Obtain the key from your provider; API usage is billed to your own provider account. For local models, follow the local service's configuration requirements.
+
+See “First use” below and the [user guide](USER_GUIDE.md) (Chinese) for configuration details.
+
+## Build from source and use
 
 ### Requirements
 
