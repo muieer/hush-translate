@@ -24,6 +24,7 @@ final class FloatingPanelTests: XCTestCase {
         XCTAssertTrue(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
         XCTAssertFalse(window.styleMask.contains(.nonactivatingPanel))
         XCTAssertTrue(window.collectionBehavior.contains(.managed))
+        XCTAssertTrue(window.collectionBehavior.contains(.moveToActiveSpace))
         XCTAssertFalse(window.collectionBehavior.contains(.stationary))
         XCTAssertFalse(window.collectionBehavior.contains(.canJoinAllSpaces))
         XCTAssertEqual(window.level, .normal)
