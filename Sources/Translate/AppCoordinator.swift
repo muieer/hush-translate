@@ -110,6 +110,10 @@ final class AppCoordinator: ObservableObject {
         translationSession.close()
     }
 
+    func resetTranslationSession() {
+        translationSession.reset()
+    }
+
     /// 截图翻译
     func translateScreenshotNow() {
         guard ensurePermissionsForScreenshot() else { return }

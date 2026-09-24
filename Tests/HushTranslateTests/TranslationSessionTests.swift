@@ -62,6 +62,48 @@ final class TranslationSessionTests: XCTestCase {
         XCTAssertEqual(store.state, .count(remaining: 3))
     }
 
+    func testResetRestoresOriginalCountAndPublishesStatus() async throws {
+        let store = Clock().store()
+        let presentation = SessionPresentation(session: store)
+        XCTAssertFalse(store.canReset)
+        XCTAssertFalse(store.reset())
+        try store.start(configuration: .count(3))
+        store.consumeValidSelection()
+        XCTAssertEqual(presentation.status.title, "剩余 2 次")
+        XCTAssertTrue(store.canReset)
+        XCTAssertTrue(store.reset())
+        XCTAssertEqual(store.state, .count(remaining: 3))
+        XCTAssertEqual(presentation.status.title, "剩余 3 次")
+        store.close()
+        XCTAssertFalse(store.canReset)
+        XCTAssertFalse(store.reset())
+        XCTAssertEqual(store.state, .off)
+    }
+
+    func testResetRestartsOriginalTimerAndRejectsExpiredSession() async throws {
+        let clock = Clock()
+        let store = clock.store()
+        try store.start(configuration: .timer(minutes: 2))
+        clock.date += 90
+        XCTAssertTrue(store.reset())
+        XCTAssertEqual(store.state, .timer(expiresAt: clock.date + 120))
+        XCTAssertTrue(clock.cancelled.contains(0))
+        clock.date += 31
+        clock.callbacks[0]()
+        XCTAssertEqual(store.state, .timer(expiresAt: clock.date + 89))
+        clock.date += 89
+        XCTAssertFalse(store.reset())
+        XCTAssertEqual(store.state, .off)
+    }
+
+    func testAlwaysCannotReset() async throws {
+        let store = Clock().store()
+        try store.start(configuration: .always)
+        XCTAssertFalse(store.canReset)
+        XCTAssertFalse(store.reset())
+        XCTAssertEqual(store.state, .always)
+    }
+
     func testEveryConfigurationReplacesEveryOtherConfiguration() async throws {
         let configurations: [TranslationSessionConfiguration] = [.always, .count(3), .timer(minutes: 10)]
         for original in configurations {
