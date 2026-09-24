@@ -82,7 +82,7 @@ final class AppCoordinator: ObservableObject {
         do {
             try selectionTranslation.startDefaultSession()
         } catch {
-            showError("翻译会话配置无效：次数和分钟数必须为正整数。")
+            showSessionStartAlert("翻译会话配置无效：次数和分钟数必须为正整数。")
         }
     }
 
@@ -91,7 +91,7 @@ final class AppCoordinator: ObservableObject {
         do {
             try translationSession.start(configuration: configuration)
         } catch {
-            showError("翻译会话配置无效：次数和分钟数必须为正整数。")
+            showSessionStartAlert("翻译会话配置无效：次数和分钟数必须为正整数。")
         }
     }
 
@@ -213,11 +213,22 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// 会话尚未开始时的提示独立于结果窗，不覆盖已有翻译状态。
+    private func showSessionStartAlert(_ message: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "无法开启划词翻译会话"
+        alert.informativeText = message
+        alert.addButton(withTitle: "好")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
     @discardableResult
     private func ensurePermissionsForSelection() -> Bool {
         // Only an explicit session start can prompt; passive selections remain silent.
         if AXIsProcessTrusted() == false {
-            showError("需要「辅助功能」权限才能开启划词翻译会话。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
+            showSessionStartAlert("需要「辅助功能」权限才能开启划词翻译会话。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
             requestAccessibilityPermission()
             return false
         }
@@ -267,7 +278,7 @@ final class AppCoordinator: ObservableObject {
                 await MainActor.run {
                     self.isWorking = false
                     self.statusMessage = nil
-                    self.showError("OCR 失败：\(error.localizedDescription)")
+                    self.showError("OCR 失败：\(error.localizedDescription)", keepPosition: true)
                 }
                 return
             }
@@ -276,7 +287,7 @@ final class AppCoordinator: ObservableObject {
                 await MainActor.run {
                     self.isWorking = false
                     self.statusMessage = nil
-                    self.showError("OCR 未识别到任何文字。")
+                    self.showError("OCR 未识别到任何文字。", keepPosition: true)
                 }
                 return
             }
@@ -284,16 +295,16 @@ final class AppCoordinator: ObservableObject {
             await MainActor.run {
                 self.statusMessage = "翻译中…"
             }
-            self.runTranslate(text: extractedText, imageData: Self.pngData(from: image), source: .screenshot)
+            self.runTranslate(text: extractedText, imageData: Self.pngData(from: image), source: .screenshot, presentWindow: false)
         }
     }
 
     private func runTranslateWithImage(_ image: NSImage) async {
         let data = Self.pngData(from: image)
-        runTranslate(text: "", imageData: data, source: .screenshot)
+        runTranslate(text: "", imageData: data, source: .screenshot, presentWindow: false)
     }
 
-    private func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source) {
+    private func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true) {
         // cancel 旧任务
         workingTask?.cancel()
         lastSource = source
@@ -301,7 +312,7 @@ final class AppCoordinator: ObservableObject {
         isWorking = true
         errorMessage = nil
         statusMessage = "翻译中…"
-        showResultPanel()
+        if presentWindow { showResultPanel() } else { refreshResultPanel() }
 
         let req = TranslationRequest(
             text: text,
@@ -359,9 +370,9 @@ final class AppCoordinator: ObservableObject {
         }
         resultPanel?.show(
             { AnyView(ResultPanelView(coordinator: self)) },
-            size: NSSize(width: 440, height: 160),
+            size: NSSize(width: 440, height: 360),
             pinned: resultPanelPinned,
-            keepPosition: keepPosition
+            bringToFront: !keepPosition
         )
     }
 
@@ -369,11 +380,17 @@ final class AppCoordinator: ObservableObject {
         guard let panel = resultPanel else { return }
         panel.show(
             { AnyView(ResultPanelView(coordinator: self)) },
-            size: NSSize(width: 440, height: 160),
+            size: NSSize(width: 440, height: 360),
             pinned: resultPanelPinned,
             keepPinned: true,
-            keepPosition: true
+            bringToFront: false
         )
+    }
+
+    /// 菜单中的显式返回入口，不重新发起翻译。
+    func showLastResult() {
+        showResultPanel()
+        resultPanel?.activate()
     }
 
     func dismissResultPanel() {

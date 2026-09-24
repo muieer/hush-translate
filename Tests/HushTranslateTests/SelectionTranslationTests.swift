@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import SwiftUI
 import XCTest
 @testable import HushTranslate
 
@@ -59,6 +60,28 @@ final class SelectionTranslationTests: XCTestCase {
         try f.controller.startDefaultSession()
         XCTAssertEqual(f.session.state, .count(remaining: 3))
         XCTAssertEqual(f.translations, ["A", "B"])
+    }
+
+    func testSessionStartDoesNotPresentResultsUntilValidSelection() throws {
+        let session = TranslationSessionStore()
+        let monitor = Monitor()
+        let panel = FloatingPanelController<AnyView>(autosaveName: nil)
+        defer { panel.close(); session.close() }
+        let controller = SelectionTranslationController(
+            session: session, monitor: monitor, configuration: { .always },
+            translate: { text in panel.show { AnyView(Text(text)) } }
+        )
+        try controller.startDefaultSession()
+        XCTAssertTrue(monitor.running)
+        XCTAssertFalse(panel.isVisible())
+        monitor.emit(" ")
+        XCTAssertFalse(panel.isVisible())
+        monitor.emit("有效选区")
+        XCTAssertTrue(panel.isVisible())
+        panel.close()
+        session.close()
+        monitor.emit("会话关闭后的选区")
+        XCTAssertFalse(panel.isVisible())
     }
 
     func testAlwaysAcceptsDistinctEventsEvenWithSameText() async throws {
@@ -180,19 +203,32 @@ final class SelectionTranslationTests: XCTestCase {
 
     func testOrdinaryAndRightClicksAreNotSelectionCandidates() async {
         var gestures = SelectionGestureTracker()
-        XCTAssertFalse(gestures.accepts(.leftMouseDown, clickCount: 1, shift: false))
-        XCTAssertFalse(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false))
-        XCTAssertFalse(gestures.accepts(.rightMouseUp, clickCount: 1, shift: false))
+        let start = NSPoint(x: 100, y: 100)
+        XCTAssertFalse(gestures.accepts(.leftMouseDown, clickCount: 1, shift: false, location: start))
+        XCTAssertFalse(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false,
+                                        location: NSPoint(x: 101, y: 101)))
+        XCTAssertFalse(gestures.accepts(.rightMouseUp, clickCount: 1, shift: false, location: start))
     }
 
     func testDragDoubleClickAndShiftClickAreSelectionCandidates() async {
         var gestures = SelectionGestureTracker()
-        XCTAssertFalse(gestures.accepts(.leftMouseDown, clickCount: 1, shift: false))
-        XCTAssertFalse(gestures.accepts(.leftMouseDragged, clickCount: 1, shift: false))
-        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false))
-        XCTAssertFalse(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false))
-        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 2, shift: false))
-        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 3, shift: false))
-        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 1, shift: true))
+        let start = NSPoint(x: 100, y: 100)
+        XCTAssertFalse(gestures.accepts(.leftMouseDown, clickCount: 1, shift: false, location: start))
+        XCTAssertFalse(gestures.accepts(.leftMouseDragged, clickCount: 1, shift: false, location: start))
+        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false, location: start))
+        XCTAssertFalse(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false, location: start))
+        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 2, shift: false, location: start))
+        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 3, shift: false, location: start))
+        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 1, shift: true, location: start))
+    }
+
+    func testPointerMovementDetectsSelectionWithoutDragEvent() async {
+        var gestures = SelectionGestureTracker()
+        let start = NSPoint(x: 100, y: 100)
+        XCTAssertFalse(gestures.accepts(.leftMouseDown, clickCount: 1, shift: false, location: start))
+        XCTAssertTrue(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false,
+                                       location: NSPoint(x: 120, y: 100)))
+        XCTAssertFalse(gestures.accepts(.leftMouseUp, clickCount: 1, shift: false,
+                                        location: NSPoint(x: 120, y: 100)))
     }
 }

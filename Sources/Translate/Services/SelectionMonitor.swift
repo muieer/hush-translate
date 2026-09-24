@@ -4,16 +4,27 @@ import AppKit
 /// A plain click or a right click must not copy unrelated content.
 struct SelectionGestureTracker {
     private var dragged = false
+    private var mouseDownLocation: NSPoint?
 
-    mutating func accepts(_ type: NSEvent.EventType, clickCount: Int, shift: Bool) -> Bool {
+    mutating func accepts(_ type: NSEvent.EventType, clickCount: Int, shift: Bool,
+                          location: NSPoint) -> Bool {
         switch type {
         case .leftMouseDown:
             dragged = false
+            mouseDownLocation = location
         case .leftMouseDragged:
             dragged = true
         case .leftMouseUp:
-            defer { dragged = false }
-            return dragged || clickCount >= 2 || shift
+            defer {
+                dragged = false
+                mouseDownLocation = nil
+            }
+            // Some applications do not deliver a dragged event to the global
+            // monitor. The pointer displacement still identifies the gesture.
+            let moved = mouseDownLocation.map {
+                hypot(location.x - $0.x, location.y - $0.y) >= 3
+            } ?? false
+            return dragged || moved || clickCount >= 2 || shift
         default:
             break
         }
@@ -57,35 +68,33 @@ final class SelectionMonitor: SelectionMonitoring {
     }
 
     private func handle(_ event: NSEvent) {
-        // A new gesture invalidates an unfinished capture before its copy/read.
-        if event.type == .leftMouseDown {
-            captureTask?.cancel()
-            captureTask = nil
-        }
         guard gestures.accepts(event.type, clickCount: event.clickCount,
-                               shift: event.modifierFlags.contains(.shift)),
+                               shift: event.modifierFlags.contains(.shift),
+                               location: event.cgEvent?.location ?? event.locationInWindow),
               shouldCapture?() == true else { return }
         captureTask?.cancel()
         let generation = generation
-        let application = NSWorkspace.shared.frontmostApplication?.processIdentifier
         captureTask = Task { [weak self] in
-            await self?.tryCapture(generation: generation, application: application)
+            await self?.tryCapture(generation: generation)
         }
     }
 
-    private func tryCapture(generation: UUID, application: pid_t?) async {
+    private func tryCapture(generation: UUID) async {
         do {
             // Allow the target application to finish updating its selection.
-            try await Task.sleep(nanoseconds: 50_000_000)
-            guard canContinue(generation: generation, application: application) else { return }
+            try await Task.sleep(nanoseconds: 100_000_000)
+            guard canContinue(generation: generation) else { return }
             let pb = NSPasteboard.general
             let old = pb.changeCount
             simulateCopy()
 
             // Never fall back to old clipboard text on timeout or capture failure.
-            for _ in 0..<14 {
-                try await Task.sleep(nanoseconds: 15_000_000)
-                guard canContinue(generation: generation, application: application) else { return }
+            for _ in 0..<50 {
+                try await Task.sleep(nanoseconds: 20_000_000)
+                // After posting Cmd+C, switching apps or clicking elsewhere must
+                // not discard a copy that the source app is still processing.
+                guard !Task.isCancelled, self.generation == generation,
+                      shouldCapture?() == true else { return }
                 if pb.changeCount != old {
                     guard let text = pb.string(forType: .string),
                           !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -98,9 +107,10 @@ final class SelectionMonitor: SelectionMonitoring {
         }
     }
 
-    private func canContinue(generation: UUID, application: pid_t?) -> Bool {
-        !Task.isCancelled && self.generation == generation &&
-            application != nil && NSWorkspace.shared.frontmostApplication?.processIdentifier == application &&
+    private func canContinue(generation: UUID) -> Bool {
+        guard let frontmost = NSWorkspace.shared.frontmostApplication else { return false }
+        return !Task.isCancelled && self.generation == generation &&
+            frontmost.processIdentifier != NSRunningApplication.current.processIdentifier &&
             shouldCapture?() == true
     }
 
