@@ -43,6 +43,8 @@ struct StatusBarMenu: View {
 
         Divider()
 
+        Button("显示翻译窗口") { coordinator.showLastResult() }
+
         Button {
             coordinator.openPreferences()
         } label: {

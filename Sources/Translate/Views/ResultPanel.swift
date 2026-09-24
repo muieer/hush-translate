@@ -16,7 +16,7 @@ struct ResultPanelView: View {
             footer
         }
         .padding(14)
-        .frame(width: 420)
+        .frame(minWidth: 412, maxWidth: .infinity)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
