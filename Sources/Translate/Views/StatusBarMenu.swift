@@ -37,7 +37,7 @@ struct StatusBarMenu: View {
 
         Button("显示翻译窗口") { coordinator.showLastResult() }
 
-        Button("设置…") { coordinator.openPreferences() }
+        Button("设置") { coordinator.openPreferences() }
 
         Divider()
 
@@ -49,11 +49,13 @@ struct StatusBarMenu: View {
 struct SessionStatusLabel: View {
     @ObservedObject var presentation: SessionPresentation
 
+    private static let iconSize = NSSize(width: 22, height: 18)
+
     private static let menuBarImage: NSImage? = {
         guard let url = Bundle.module.url(forResource: "MenuBarTemplate", withExtension: "png"),
               let image = NSImage(contentsOf: url) else { return nil }
         // MenuBarExtra bridges to AppKit, which uses the image's intrinsic point size.
-        image.size = NSSize(width: 18, height: 18)
+        image.size = iconSize
         image.isTemplate = true
         return image
     }()
@@ -63,7 +65,7 @@ struct SessionStatusLabel: View {
             if let image = Self.menuBarImage {
                 Image(nsImage: image)
                     .renderingMode(.template)
-                    .frame(width: 18, height: 18)
+                    .frame(width: Self.iconSize.width, height: Self.iconSize.height)
             } else {
                 Image(systemName: "character.bubble")
             }
