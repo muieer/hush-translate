@@ -13,6 +13,8 @@ Selecting text does not always mean asking for a translation. An always-on selec
 
 For example, enable translation for the next 3 selections, work through a few difficult passages, and return to uninterrupted reading. Continuous sessions can be closed from the menu bar at any time.
 
+![HushTranslate usage demo](image/introduction.gif)
+
 ## Features
 
 - **Translation sessions**: continuous, next N selections, or next N minutes, with configurable counts and durations.
