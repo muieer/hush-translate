@@ -1,161 +1,52 @@
-# HushTranslate
+<p align="center">
+  <img src="design/icons/app-icon.png" width="160" alt="HushTranslate 应用图标">
+</p>
+<h1 align="center">HushTranslate</h1>
+<p align="center">一款只在需要时出现的 macOS 大模型翻译工具。</p>
+<p align="center">中文 · <a href="README.en.md">English</a></p>
 
-macOS 原生翻译软件。SwiftUI + AppKit 实现。
+## 项目简述
 
-## 功能
+HushTranslate 面向以自主阅读为主、偶尔需要翻译的用户，提供划词翻译和截图翻译。
 
-- **划词翻译会话**：按快捷键开启默认会话（当前为未来 3 次），之后在其他应用中划词自动翻译；再次按快捷键重新开始，不会立即翻译当前选区
-- **截图翻译**：按快捷键 → 框选屏幕区域 → 本地 Vision OCR / 多模态大模型 → 翻译
-- **剪贴板翻译**：翻译剪贴板里已有的内容
-- **菜单栏常驻**：气泡图标，菜单栏下拉菜单
-- **OpenAI 兼容**：支持 LM Studio / Ollama / OpenAI / DeepSeek / SiliconFlow / Moonshot / 自定义任何兼容 OpenAI chat 接口的服务
-- **多模态**：截图模式下可选本地 OCR（免费离线）或直接发图给多模态大模型（GPT-4o / Qwen2-VL / Llama 3.2 Vision 等）
+选中文字不一定是为了翻译。一直开启的划词翻译容易频繁出现，打断阅读。HushTranslate 通过「翻译会话」控制何时响应划词：需要时，主动开启持续、按次数或按分钟的会话，随后划词即可自动翻译，无须每次按快捷键。次数用完或时间到期后，会话自动关闭；关闭时，普通划词不会触发翻译。
 
-## 界面风格
+例如，开启接下来 3 次划词翻译，处理完眼前的几处疑问后，继续安静阅读。持续会话则可以随时从菜单栏关闭。
 
-- 菜单栏图标 + 下拉菜单
-- 悬浮翻译结果窗：圆角 + 磨砂背景 + 居中显示
-- 截图选区：全屏遮罩 + 挖空选区 + 角点 + 尺寸标签
-- 设置面板：原生 Tabbed Preferences 风格
+## 功能特征
 
-## 默认快捷键
+- **划词翻译会话**：支持持续开启、开启 N 次、开启 N 分钟，次数与时长可配置。
+- **截图翻译**：框选屏幕区域，默认使用本地 OCR 识别文字后翻译；也可使用支持图片输入的多模态模型。
+- **云端与本地模型**：通过兼容 OpenAI Chat Completions API 的接口接入模型服务。
+- **轻量结果面板**：在浮动窗口中查看译文，减少应用切换。
+- **菜单栏与快捷键**：查看会话状态、开启或关闭会话，并自定义快捷键。
+- **剪贴板翻译**：直接翻译已复制的文字。
 
-| 动作 | 快捷键 |
-|------|--------|
-| 开启翻译会话 | ⌃⌥⌘D |
-| 截图翻译 | ⌘⌥⇧S |
-| 剪贴板翻译 | ⌃⌥⌘V |
+## 构建与使用
 
-可在「设置 → 快捷键」中录制自定义。
+### 环境要求
 
-## 系统要求
+- Apple Silicon Mac，macOS 14 或更高版本。
+- 完整安装的 Xcode，并已完成首次启动时的组件安装。
+- 首次构建时能够连接 GitHub，以获取依赖。
 
-- macOS 14.0 (Sonoma) 及以上
-- 完整 Xcode，工具链需支持 Swift 6.1 或以上（本机已验证 Xcode 27.0）；仅 Command Line Tools 不作为标准开发环境
-- 运行时权限：
-  - **辅助功能**（翻译选中文本）
-  - **屏幕录制**（截图翻译）
+### 构建
 
-## 快速开始
+在项目根目录执行：
 
 ```bash
-# 1. 构建开发版本（需要钥匙串中存在 Apple Development 证书）
-#    Debug 使用稳定开发签名，减少重建后重复授权辅助功能/屏幕录制权限
-./scripts/make-app.sh debug
-
-# 2. 启动；默认仅显示菜单栏入口
-open build/HushTranslate.app
-
-# 或在退出旧进程后，启动并直接显示设置
-open build/HushTranslate.app --args --show-settings
-
-# 3. 构建 release 版本
 ./scripts/make-app.sh release
+open build/HushTranslate.app --args --show-settings
 ```
 
-`Package.resolved` 纳入版本管理，KeyboardShortcuts 固定为官方 2.4.0。
-首次构建需能访问 GitHub。脚本使用 Xcode 的 Swift package 构建流程，正确生成
-`Contents/Resources` 的资源访问代码，不需要修改第三方源码或创建资源软链接。
-不要将 `swift build` 的产物用于本脚本的 `.app` 打包。
+脚本会生成 `build/HushTranslate.app`，第二条命令启动应用并打开设置。应用常驻菜单栏。
 
-脚本优先使用 `DEVELOPER_DIR` 或已选择的完整 Xcode；系统仍选择 Command Line Tools 时，
-自动使用 `/Applications/Xcode.app`，不会修改系统全局工具链设置。
+日常开发可使用 `./scripts/make-app.sh debug`，需要有效的 Apple Development 签名证书。更多开发说明见 [LOCAL_RUN.md](LOCAL_RUN.md)。
 
-Debug 构建会自动选择钥匙串中的 `Apple Development` 证书。若存在多个证书，可通过
-`HUSHTRANSLATE_SIGNING_IDENTITY` 指定名称或 SHA-1。首次从旧 ad-hoc 构建切换后可能需要
-重新授权一次辅助功能与屏幕录制权限，后续保持相同 Bundle ID 和签名身份即可持续复用权限。
+### 首次使用
 
-详细环境与验证记录见 [LOCAL_RUN.md](LOCAL_RUN.md)。
+1. 在「设置 → 通用」中填写模型服务的 `Base URL`、`API Key` 和 `Model`，选择目标语言。`Base URL` 应为服务的 API 基础地址，例如 `http://localhost:1234/v1`，不要包含 `/chat/completions`；使用本地模型前，先启动对应的模型服务。
+2. 在「设置 → 快捷键」中按需授权：划词翻译需要「辅助功能」权限，截图翻译需要「屏幕录制」权限。
+3. 从菜单栏选择「开启 3 次」，然后在其他应用中选中文字，即可开始翻译。也可在「设置 → 翻译会话」中修改默认模式、次数和时长，再用快捷键启动会话。
 
-## 第一次使用
-
-1. 启动后菜单栏右上角会出现一个气泡图标
-2. 点击菜单栏图标 → 「设置...」
-3. 在「通用」标签填写 OpenAI 兼容接口配置：
-   - Base URL: 你的 OpenAI 兼容服务地址
-   - API Key: 对应 key（本地一般填任意非空字符串）
-   - Model: 模型名
-4. 在「快捷键」标签给三项操作各授权一次系统权限
-5. 在「截图翻译」标签选 OCR 模式（推荐「本地优先」）
-6. 选中任意文本，按 ⌃⌥⌘D，悬浮窗出翻译
-
-## LM Studio 配置
-
-1. 打开 LM Studio → 启动 local server（默认 `http://localhost:1234/v1`）
-2. 加载一个 instruct 模型（推荐 `qwen2.5-7b-instruct`）
-3. 启动 HushTranslate → 在「通用」中填写 Base URL `http://localhost:1234/v1`、API Key 和已加载的模型名
-
-## Ollama 配置
-
-1. `ollama pull qwen2.5:7b`
-2. Ollama 监听 `http://localhost:11434`
-3. HushTranslate → 在「通用」中填写 Base URL `http://localhost:11434/v1`、API Key 和模型名 `qwen2.5:7b`
-
-## 项目结构
-
-```
-HushTranslate/
-├── Package.swift
-├── Sources/Translate/
-│   ├── App.swift                      # 主入口（MenuBarExtra + Settings）
-│   ├── AppCoordinator.swift           # 全局协调器
-│   ├── Models/
-│   │   ├── Settings.swift             # 配置 + 持久化
-│   │   └── Translation.swift          # 翻译请求/响应
-│   ├── Services/
-│   │   ├── TranslateService.swift     # OpenAI 兼容 HTTP 客户端
-│   │   ├── HotKeyService.swift        # 全局快捷键（KeyboardShortcuts）
-│   │   ├── SelectionMonitor.swift     # 鼠标抬起监听 + 模拟 ⌘C
-│   │   ├── ScreenshotService.swift    # ScreenCaptureKit 截屏
-│   │   └── OCRService.swift           # Vision 本地 OCR
-│   ├── Views/
-│   │   ├── StatusBarMenu.swift        # 菜单栏下拉菜单
-│   │   ├── PreferencesView.swift      # 设置面板
-│   │   ├── ResultPanel.swift          # 翻译结果悬浮窗
-│   │   └── ScreenshotOverlay.swift    # 截图选区 UI
-│   ├── Utilities/
-│   │   ├── FloatingPanel.swift        # 自定义 NSPanel（圆角磨砂）
-│   │   └── Logger.swift               # os.Logger
-└── Info/
-    └── Info.plist                     # .app bundle metadata（SwiftPM 不处理）
-scripts/
-└── make-app.sh                        # 打包 .app 脚本
-```
-
-## 已知限制
-
-- 第一次启动会弹两个权限请求（辅助功能 + 屏幕录制），必须在「系统设置 → 隐私与安全性」授权
-- 屏幕录制权限可能需要退出重进 app 才生效
-- SwiftUI 在 NSPanel/hudWindow 上有少量边界 bug（如部分透明度），已用 NSVisualEffectView 兜底
-- 暂时没有翻译历史（待办）
-
-## Troubleshooting
-
-### 启动后菜单栏看不到图标 / 双击没反应
-
-查 crash log：
-```bash
-ls -lt ~/Library/Logs/DiagnosticReports/HushTranslate*.ips | head -1 | xargs cat
-```
-
-**已知 crash 1**：`EXC_BAD_ACCESS` 落在 `AXIsProcessTrustedWithOptions` → `CFGetTypeID`
-- **原因**：ad-hoc 签名的 app 在 `init` 阶段调 `AXIsProcessTrustedWithOptions` 会 SIGSEGV（系统框架在未完全初始化时访问 nil 类型）
-- **修法**：把权限查询延后到 SwiftUI scene 已挂载后（用 `.task` / `.onAppear` 触发）
-
-**已知 crash 2**：app 启动后立刻消失
-- 检查：菜单栏右上角有没有气泡图标？没有 = 启动崩溃了，看 crash log
-- 看 Console.app → 搜 "HushTranslate"
-
-## License
-
-本项目采用 [MIT License](LICENSE)。
-
-HushTranslate 基于 [fastZhe/bob](https://github.com/fastZhe/bob) 开发。首次提交（`4f3ba25a78eed69d479c00600e5377bf7b5af15e`）中的绝大部分代码来自该项目，所采用的上游代码截至以下版本（含该提交及其此前的贡献）：
-
-- 上游提交：[`d59b2ca000a693713c032c2f8e08141e8554408f`](https://github.com/fastZhe/bob/commit/d59b2ca000a693713c032c2f8e08141e8554408f)
-- 提交时间：2026 年 8 月 13 日 17:27:41（UTC+08:00；UTC 时间为 09:27:41）
-- 提交说明：`add language config`
-
-上述时间和提交标识用于界定首次引入的上游代码版本，不表示上游版权或 MIT 许可在该时间终止。
-
-上游 README 的 License 一节声明为 `MIT`，但未提供独立的许可证文件或完整版权声明。本项目据此补充标准 MIT 许可证全文，并添加 `fastZhe and contributors` 的上游归属说明；该署名由本项目补充，上游版权年份未作推定。`muieer` 的版权声明仅对应 HushTranslate 的修改部分。
+截图翻译可直接从菜单栏启动，无须开启划词翻译会话。
