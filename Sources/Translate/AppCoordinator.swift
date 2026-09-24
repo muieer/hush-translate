@@ -202,6 +202,24 @@ final class AppCoordinator: ObservableObject {
         win.makeKeyAndOrderFront(nil)
     }
 
+    // MARK: - 关于
+
+    private var aboutWindow: NSWindow?
+
+    func openAbout() {
+        if aboutWindow == nil {
+            let win = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
+            win.title = "关于 HushTranslate"
+            win.styleMask = [.titled, .closable, .miniaturizable]
+            win.setContentSize(NSSize(width: 480, height: 320))
+            win.center()
+            win.isReleasedWhenClosed = false
+            aboutWindow = win
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        aboutWindow?.makeKeyAndOrderFront(nil)
+    }
+
     // MARK: - 权限
 
     /// 检测当前权限状态（**不调 AXIsProcessTrustedWithOptions**）。

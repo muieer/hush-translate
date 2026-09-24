@@ -41,6 +41,10 @@ struct StatusBarMenu: View {
 
         Divider()
 
+        Button("关于") { coordinator.openAbout() }
+
+        Divider()
+
         Button("退出") { NSApp.terminate(nil) }
     }
 }
