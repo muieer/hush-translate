@@ -35,8 +35,16 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh d
 - Debug 构建必须使用钥匙串中的稳定 `Apple Development` 证书；脚本会自动选择第一个有效证书，也可通过 `HUSHTRANSLATE_SIGNING_IDENTITY` 显式指定名称或 SHA-1。
 - 从旧 ad-hoc 构建首次切换到稳定开发签名后，辅助功能和屏幕录制权限可能需要重新授权一次；之后保持相同 Bundle ID 与开发签名，可避免常规重建反复产生新的代码身份。
 - 若缺少开发证书，先在 Xcode → Settings → Accounts 登录 Apple ID，并用 `security find-identity -v -p codesigning` 确认存在 `Apple Development` identity。
-- Release 构建暂时维持原有 ad-hoc 签名；Developer ID 分发签名与 Apple 公证另行处理。
+- Release 构建使用 ad-hoc 签名，通过 GitHub Releases 免费分发 ZIP；不加入 Apple Developer Program，不使用 Developer ID 签名或 Apple 公证，也不需要 Apple CI Secrets。
 - 已删除运行时修改应用目录的资源修复代码，应用根目录不再放软链接。
+
+## 版本与发布
+
+- 在 `Info/Info.plist` 中手动维护 `CFBundleShortVersionString`（例如 `0.1.0`）；普通提交、本地构建和 CI 都不会自动修改正式版本号。
+- 本地 Debug 和 Release 默认沿用源文件中的 `CFBundleVersion`（当前为 `1`）。GitHub Actions 将 `github.run_number` 通过 `HUSHTRANSLATE_BUILD_NUMBER` 传给构建脚本，只在签名前修改产物 `build/HushTranslate.app/Contents/Info.plist`，不回写或提交仓库文件。
+- `build.yml` 只接受手动触发或其他 workflow 调用，产物为 `HushTranslate.app.zip`。构建号来自触发本次构建的 workflow；手动构建和 tag 发布各自计数，重新运行同一次 workflow 不增加 run number。
+- 发布前先修改并提交正式版本号，再在对应提交上创建并推送 `vMAJOR.MINOR.PATCH` tag，例如 `v0.1.0`。`release.yml` 先检查 tag 格式及其与正式版本号的一致性，不一致时直接失败，不自动修正版本号。
+- 检查通过后调用 `build.yml`，将 ZIP 命名为 `HushTranslate-0.1.0.zip`，创建 GitHub Release 并上传。安装与首次放行步骤见 README 和 USER_GUIDE。
 
 ## 重建
 

@@ -2,6 +2,17 @@
 
 HushTranslate 是一款常驻 macOS 菜单栏的翻译工具，支持选中文本、截图区域和剪贴板内容翻译。翻译由用户配置的 OpenAI 兼容模型服务完成。
 
+## 安装与首次运行
+
+HushTranslate 免费分发，发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
+
+1. 从 [GitHub Releases](https://github.com/muieer/hush-translate/releases) 下载 `HushTranslate-x.x.x.zip`。
+2. 解压 ZIP 文件。
+3. 建议将 `HushTranslate.app` 移至 `/Applications`（应用程序）文件夹，也可放在其他位置。
+4. 双击应用。macOS Gatekeeper 可能阻止首次打开；此时前往「系统设置 → 隐私与安全性」，找到 HushTranslate 的提示，点击「仍要打开」，并按系统提示确认。
+5. 启动后，按系统提示授予所需的「辅助功能」「屏幕录制」等权限。具体用途见下方「系统权限」。
+6. 打开应用设置，自行配置模型服务的 API Key。API Key 由用户自行从服务商获取，API 使用费用由用户自己的服务商账号承担；本地模型按其服务要求配置。
+
 ## 使用前准备
 
 - 系统要求：macOS 14.0 或更高版本。

@@ -20,6 +20,8 @@ jobs:
           swift --version
 
       - name: Build and verify app
+        env:
+          HUSHTRANSLATE_BUILD_NUMBER: ${{ github.run_number }}
         run: ./scripts/make-app.sh release
 
       - name: Archive app

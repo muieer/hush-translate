@@ -8,12 +8,45 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    name: Validate release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check tag matches app version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import plistlib
+          import re
+          import sys
+
+          tag = os.environ["RELEASE_TAG"]
+          if not re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tag):
+              sys.exit("Release tag must use vMAJOR.MINOR.PATCH (for example, v0.1.0).")
+          version = tag[1:]
+          with open("Info/Info.plist", "rb") as source:
+              app_version = plistlib.load(source)["CFBundleShortVersionString"]
+          if version != app_version:
+              sys.exit(f"Release tag {tag} does not match CFBundleShortVersionString {app_version}. Update Info/Info.plist manually before tagging.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+          PY
+
   build:
+    needs: validate
     uses: ./.github/workflows/build.yml
 
   release:
     name: Attach to GitHub Release
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -22,8 +55,14 @@ jobs:
           name: HushTranslate
           path: dist
 
+      - name: Name release archive
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: mv dist/HushTranslate.app.zip "dist/HushTranslate-${RELEASE_VERSION}.zip"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/HushTranslate.app.zip
+          files: dist/HushTranslate-${{ needs.validate.outputs.version }}.zip
+          fail_on_unmatched_files: true
           generate_release_notes: true
