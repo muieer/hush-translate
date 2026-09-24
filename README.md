@@ -148,4 +148,14 @@ ls -lt ~/Library/Logs/DiagnosticReports/HushTranslate*.ips | head -1 | xargs cat
 
 ## License
 
-MIT
+本项目采用 [MIT License](LICENSE)。
+
+HushTranslate 基于 [fastZhe/bob](https://github.com/fastZhe/bob) 开发。首次提交（`4f3ba25a78eed69d479c00600e5377bf7b5af15e`）中的绝大部分代码来自该项目，所采用的上游代码截至以下版本（含该提交及其此前的贡献）：
+
+- 上游提交：[`d59b2ca000a693713c032c2f8e08141e8554408f`](https://github.com/fastZhe/bob/commit/d59b2ca000a693713c032c2f8e08141e8554408f)
+- 提交时间：2026 年 8 月 13 日 17:27:41（UTC+08:00；UTC 时间为 09:27:41）
+- 提交说明：`add language config`
+
+上述时间和提交标识用于界定首次引入的上游代码版本，不表示上游版权或 MIT 许可在该时间终止。
+
+上游 README 的 License 一节声明为 `MIT`，但未提供独立的许可证文件或完整版权声明。本项目据此补充标准 MIT 许可证全文，并添加 `fastZhe and contributors` 的上游归属说明；该署名由本项目补充，上游版权年份未作推定。`muieer` 的版权声明仅对应 HushTranslate 的修改部分。

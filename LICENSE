@@ -1,0 +1,46 @@
+MIT License
+
+Copyright (c) fastZhe and contributors (original work)
+Copyright (c) 2026 muieer (HushTranslate modifications)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+Upstream attribution (informational; not additional license terms)
+
+HushTranslate is derived from fastZhe/bob:
+https://github.com/fastZhe/bob
+
+The upstream code incorporated into HushTranslate's initial commit
+(4f3ba25a78eed69d479c00600e5377bf7b5af15e) includes contributions through
+the following upstream revision, inclusive:
+
+Commit: d59b2ca000a693713c032c2f8e08141e8554408f
+Commit date: 2026-08-13 17:27:41 UTC+08:00 (2026-08-13 09:27:41 UTC)
+Commit message: add language config
+Commit URL: https://github.com/fastZhe/bob/commit/d59b2ca000a693713c032c2f8e08141e8554408f
+
+This revision identifies the upstream baseline for the initial import; it
+does not set an expiration date for upstream copyright or the MIT license.
+
+The upstream README states "MIT" but provides no standalone license file or
+complete copyright notice. HushTranslate supplies the MIT license text above
+and the attribution to fastZhe and contributors based on that declaration.
+No upstream copyright year is inferred. The copyright notice for muieer
+applies only to the HushTranslate modifications.
