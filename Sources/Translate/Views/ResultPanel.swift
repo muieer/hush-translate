@@ -154,11 +154,6 @@ struct ResultPanelView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .help(coordinator.resultPanelPinned ? "取消置顶" : "置顶（浮在最前）")
-
-            Button("关闭") { coordinator.dismissResultPanel() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .keyboardShortcut(.cancelAction)
         }
     }
 

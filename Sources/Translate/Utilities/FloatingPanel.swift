@@ -4,6 +4,12 @@ import SwiftUI
 /// 自动展示不夺取焦点；用户点击后按普通应用窗口激活。
 private final class ResultPanelWindow: NSWindow {
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown,
+           event.keyCode == 53,
+           event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty {
+            performClose(nil)
+            return
+        }
         if event.type == .leftMouseDown {
             NSApp.activate(ignoringOtherApps: true)
             makeKeyAndOrderFront(nil)
