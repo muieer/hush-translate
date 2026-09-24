@@ -48,7 +48,8 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
                 backing: .buffered, defer: false
             )
             window.title = "HushTranslate 翻译结果"
-            window.collectionBehavior = [.managed, .fullScreenPrimary]
+            // A reused result window must follow the desktop where the next selection occurs.
+            window.collectionBehavior = [.managed, .fullScreenPrimary, .moveToActiveSpace]
             window.contentMinSize = NSSize(width: 440, height: 220)
             window.isReleasedWhenClosed = false
             window.delegate = self
