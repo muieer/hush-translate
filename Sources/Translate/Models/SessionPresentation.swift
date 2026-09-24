@@ -21,7 +21,7 @@ struct SessionStatus: Equatable {
             } else {
                 // Formatting as a whole number avoids overflowing Int for large presets.
                 let text = String(format: "%.0f", minutes)
-                title = "约剩余 \(text) 分钟"; badge = "\(text)m"; isActive = true
+                title = "剩余 \(text) 分钟"; badge = "\(text)m"; isActive = true
             }
         }
     }

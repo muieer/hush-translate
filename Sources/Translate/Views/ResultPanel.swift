@@ -5,12 +5,14 @@ import AppKit
 struct ResultPanelView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject private var settings: SettingsStore
+    @ObservedObject private var sessionPresentation: SessionPresentation
     @State private var copiedTranslation = false
     @State private var copiedOriginal = false
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
         self.settings = coordinator.settings
+        self.sessionPresentation = coordinator.sessionPresentation
     }
 
     var body: some View {
@@ -97,6 +99,7 @@ struct ResultPanelView: View {
                     if !result.original.isEmpty {
                         sectionTitle("原文")
                         selectableText(result.original, font: 11, color: .secondary)
+                        copyButton(result.original, isOriginal: true)
                     }
                     if !result.original.isEmpty && !result.translated.isEmpty {
                         Divider()
@@ -104,6 +107,7 @@ struct ResultPanelView: View {
                     if !result.translated.isEmpty {
                         sectionTitle("译文")
                         selectableText(result.translated, font: 13, color: .primary)
+                        copyButton(result.translated, isOriginal: false)
                     }
                 }
             }
@@ -118,38 +122,27 @@ struct ResultPanelView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            if let r = coordinator.lastResult {
-                Button {
-                    copy(r.translated)
-                    copiedTranslation = true
-                    scheduleReset(\.copiedTranslation)
-                } label: {
-                    Label(copiedTranslation ? "已复制译文" : "复制译文", systemImage: copiedTranslation ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
-                }
+            Text("会话：\(sessionPresentation.status.title)")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+
+            Button("关闭会话") { coordinator.closeTranslationSession() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(!sessionPresentation.status.isActive)
 
-                if !r.original.isEmpty {
-                    Button {
-                        copy(r.original)
-                        copiedOriginal = true
-                        scheduleReset(\.copiedOriginal)
-                    } label: {
-                        Label(copiedOriginal ? "已复制原文" : "复制原文", systemImage: copiedOriginal ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 11))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
+            Button("重置翻译") { coordinator.resetTranslationSession() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!sessionPresentation.status.isActive || !coordinator.translationSession.canReset)
 
-                Spacer()
+            Spacer(minLength: 0)
 
-                Text(String(format: "%.1fs", r.latency))
+            if let result = coordinator.lastResult {
+                Text(String(format: "%.1fs", result.latency))
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
-            } else {
-                Spacer()
             }
 
             Button {
@@ -183,6 +176,27 @@ struct ResultPanelView: View {
             .foregroundColor(color)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func copyButton(_ value: String, isOriginal: Bool) -> some View {
+        let copied = isOriginal ? copiedOriginal : copiedTranslation
+        let label = isOriginal ? "原文" : "译文"
+        return Button {
+            copy(value)
+            if isOriginal {
+                copiedOriginal = true
+                scheduleReset(\.copiedOriginal)
+            } else {
+                copiedTranslation = true
+                scheduleReset(\.copiedTranslation)
+            }
+        } label: {
+            Label(copied ? "已复制\(label)" : "复制\(label)", systemImage: copied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 11))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func copy(_ s: String) {

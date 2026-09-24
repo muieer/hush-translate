@@ -94,7 +94,7 @@ final class SessionSettingsTests: XCTestCase {
         session.consumeValidSelection()
         XCTAssertFalse(presentation.status.isActive)
         try session.start(configuration: .timer(minutes: 10))
-        XCTAssertEqual(presentation.status.title, "约剩余 10 分钟")
+        XCTAssertEqual(presentation.status.title, "剩余 10 分钟")
         now += 60
         presentation.refresh()
         XCTAssertEqual(presentation.status.badge, "9m")

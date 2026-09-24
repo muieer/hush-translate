@@ -30,6 +30,14 @@ final class TranslationSessionStore: ObservableObject {
     typealias ScheduleExpiration = (Date, @escaping @MainActor () -> Void) -> AnyCancellable
 
     @Published private(set) var state: TranslationSessionState = .off
+    private(set) var activeConfiguration: TranslationSessionConfiguration?
+
+    var canReset: Bool {
+        switch state {
+        case .count, .timer: return activeConfiguration != nil
+        case .off, .always: return false
+        }
+    }
 
     private let now: () -> Date
     private let scheduleExpiration: ScheduleExpiration
@@ -74,6 +82,7 @@ final class TranslationSessionStore: ObservableObject {
         expiration?.cancel()
         expiration = nil
         sessionID = UUID()
+        activeConfiguration = configuration
         state = next
         if case .timer(let deadline) = next {
             armExpiration(at: deadline, id: sessionID)
@@ -84,7 +93,22 @@ final class TranslationSessionStore: ObservableObject {
         expiration?.cancel()
         expiration = nil
         sessionID = UUID()
+        activeConfiguration = nil
         if state != .off { state = .off }
+    }
+
+    /// Restarts the active limited session using the amount selected when it began.
+    @discardableResult
+    func reset() -> Bool {
+        refreshExpiration()
+        guard canReset, let configuration = activeConfiguration else { return false }
+        // The saved configuration was validated by start(configuration:).
+        do {
+            try start(configuration: configuration)
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Call only after obtaining a valid Selection. A true result admits one
