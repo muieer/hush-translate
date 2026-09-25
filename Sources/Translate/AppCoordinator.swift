@@ -69,20 +69,15 @@ final class AppCoordinator: ObservableObject {
         hotKey.onSession = { [weak self] in self?.startDefaultTranslationSession() }
         hotKey.onScreenshot = { [weak self] in self?.translateScreenshotNow() }
         hotKey.onClipboard  = { [weak self] in self?.translateClipboardNow() }
-        hotKey.install()
-        // 开发启动时可直接打开设置，便于验证菜单栏应用的界面。
-        if CommandLine.arguments.contains("--show-settings") {
-            DispatchQueue.main.async { [weak self] in
-                self?.openPreferences()
-            }
-        }
-        // 注意：不能调 AXIsProcessTrustedWithOptions —— ad-hoc 签名下必崩 SIGSEGV
-        // 也不要自动检测屏幕录制权限 —— 让用户通过功能失败来发现
     }
 
-    /// 在 SwiftUI scene 已构建后调用一次（保留供将来扩展，目前不做事）
+    /// 完成安装位置检查后才注册快捷键和打开开发设置窗口。
     func bootstrap() {
-        // 留空：自动权限检测在 ad-hoc 签名下不安全
+        hotKey.install()
+        if CommandLine.arguments.contains("--show-settings") {
+            openPreferences()
+        }
+        // 不自动探测权限：由用户触发功能时检查。
     }
 
     // MARK: - 三种入口 action
