@@ -9,7 +9,6 @@ struct HushTranslateApp: App {
     var body: some Scene {
         MenuBarExtra {
             StatusBarMenu(coordinator: coordinator)
-                .task { coordinator.bootstrap() }
         } label: {
             SessionStatusLabel(presentation: coordinator.sessionPresentation)
         }
@@ -28,6 +27,13 @@ struct HushTranslateApp: App {
 
 @MainActor
 final class HushTranslateAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor in
+            if await AppInstallation.promptAndMoveIfNeeded() { return }
+            AppCoordinator.shared.bootstrap()
+        }
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         // 再次启动只保持菜单栏常驻，不恢复或抬起任何窗口。
         return false
