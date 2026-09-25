@@ -132,7 +132,7 @@ struct ResultPanelView: View {
                 .controlSize(.small)
                 .disabled(!sessionPresentation.status.isActive)
 
-            Button("重置翻译") { coordinator.resetTranslationSession() }
+            Button("重置会话") { coordinator.resetTranslationSession() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!sessionPresentation.status.isActive || !coordinator.translationSession.canReset)
