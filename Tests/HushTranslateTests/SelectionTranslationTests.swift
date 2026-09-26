@@ -40,6 +40,69 @@ final class SelectionTranslationTests: XCTestCase {
         )
     }
 
+    func testSelectionButtonWaitsForClickAndConsumesOnlyOnce() async throws {
+        let f = Fixture()
+        try f.controller.startDefaultSession()
+        let button = SelectionActionPanel()
+        defer { button.dismiss() }
+        button.show(above: NSRect(x: 100, y: 100, width: 120, height: 20)) {
+            f.monitor.emit("selected text")
+        }
+        XCTAssertTrue(f.translations.isEmpty)
+        XCTAssertEqual(f.session.state, .count(remaining: 3))
+        button.confirm()
+        button.confirm()
+        XCTAssertEqual(f.translations, ["selected text"])
+        XCTAssertEqual(f.session.state, .count(remaining: 2))
+    }
+
+    func testDismissedAndReplacedSelectionButtonsCannotTranslateOldText() async {
+        let button = SelectionActionPanel()
+        defer { button.dismiss() }
+        var translations: [String] = []
+        let bounds = NSRect(x: 100, y: 100, width: 120, height: 20)
+        button.show(above: bounds) { translations.append("old") }
+        button.dismiss()
+        button.confirm()
+        XCTAssertTrue(translations.isEmpty)
+        button.show(above: bounds) { translations.append("old") }
+        button.show(above: bounds) { translations.append("new") }
+        button.confirm()
+        XCTAssertEqual(translations, ["new"])
+    }
+
+    func testPendingConfirmationCannotTranslateAfterSessionClosesOrExpires() async throws {
+        let f = Fixture()
+        f.preset = .timer(minutes: 1)
+        try f.controller.startDefaultSession()
+        let button = SelectionActionPanel()
+        defer { button.dismiss() }
+        let callback = try XCTUnwrap(f.monitor.captures.last)
+        button.show(above: NSRect(x: 100, y: 100, width: 120, height: 20)) { callback("expired") }
+        f.now += 60
+        button.confirm()
+        XCTAssertTrue(f.translations.isEmpty)
+        XCTAssertEqual(f.session.state, .off)
+        try f.controller.startDefaultSession()
+        let nextCallback = try XCTUnwrap(f.monitor.captures.last)
+        button.show(above: NSRect(x: 100, y: 100, width: 120, height: 20)) { nextCallback("closed") }
+        f.session.close()
+        button.confirm()
+        XCTAssertTrue(f.translations.isEmpty)
+    }
+
+    func testSelectionButtonCenteredAboveSelectionAndConstrainedToScreen() {
+        let screen = NSRect(x: -1440, y: 0, width: 1440, height: 900)
+        let size = NSSize(width: 76, height: 36)
+        let selection = NSRect(x: -1000, y: 400, width: 200, height: 20)
+        let frame = SelectionActionPanel.frame(above: selection, size: size, visibleFrame: screen)
+        XCTAssertEqual(frame.midX, selection.midX)
+        XCTAssertEqual(frame.minY, selection.maxY + 8)
+        let edge = SelectionActionPanel.frame(above: NSRect(x: -10, y: 880, width: 10, height: 20),
+                                              size: size, visibleFrame: screen)
+        XCTAssertTrue(screen.contains(edge))
+    }
+
     func testOffDoesNotStartCaptureOrTranslate() async {
         let f = Fixture()
         _ = f.controller

@@ -9,7 +9,7 @@
 
 HushTranslate is for people who mostly read on their own and occasionally need help translating selected text or text in screenshots.
 
-Selecting text does not always mean asking for a translation. An always-on selection translator can interrupt reading with frequent popups. HushTranslate uses **translation sessions** to control when text selection triggers translation. Start a continuous session, a session for the next N selections, or a session lasting N minutes. Then select text to translate it automatically, without pressing a shortcut each time. Limited sessions end automatically when the count or time runs out. With no active session, ordinary text selection does not trigger translation.
+Selecting text does not always mean asking for a translation. An always-on selection translator can interrupt reading with frequent popups. HushTranslate uses **translation sessions** to control when text selection triggers translation. Start a continuous session, a session for the next N selections, or a session lasting N minutes. Then select text and click the “翻译” (Translate) button above the selection, without pressing a shortcut each time. The session count decreases only when you click Translate. Limited sessions end automatically when the count or time runs out. With no active session, ordinary text selection does not trigger translation.
 
 For example, enable translation for the next 3 selections, work through a few difficult passages, and return to uninterrupted reading. Continuous sessions can be closed from the menu bar at any time.
 
@@ -62,6 +62,6 @@ For development, use `./scripts/make-app.sh debug`, which requires a valid Apple
 
 1. In Settings → General (「设置 → 通用」), enter your service's `Base URL`, `API Key`, and `Model`, then choose a target language. Use the API base address, such as `http://localhost:1234/v1`, without `/chat/completions`. For local models, start the model server first.
 2. In Settings → Shortcuts (「设置 → 快捷键」), grant the permissions you need: Accessibility for selected-text translation and Screen Recording for screenshot translation.
-3. Choose “Enable 3 selections” (「开启 3 次」) from the menu bar, then select text in another app to translate it. To change the default mode, count, or duration, open Settings → Translation Session (「设置 → 翻译会话」), then use the shortcut to start a session.
+3. Choose “Enable 3 selections” (「开启 3 次」) from the menu bar, then select text in another app and click the “翻译” (Translate) button above the selection. To change the default mode, count, or duration, open Settings → Translation Session (「设置 → 翻译会话」), then use the shortcut to start a session.
 
 Screenshot translation can be started directly from the menu bar without an active translation session.
