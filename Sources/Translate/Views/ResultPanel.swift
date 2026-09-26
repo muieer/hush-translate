@@ -33,12 +33,7 @@ struct ResultPanelView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            if let m = coordinator.resultProviderName {
-                Text(m)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
+            providerMenu
             Spacer()
             languageMenu(
                 code: settings.sourceLanguage,
@@ -52,6 +47,30 @@ struct ResultPanelView: View {
                 includeAuto: false
             ) { coordinator.changeResultTargetLanguage($0) }
         }
+    }
+
+    private var providerMenu: some View {
+        Menu {
+            Picker("翻译来源", selection: Binding(
+                get: { coordinator.resultProvider ?? settings.provider },
+                set: { coordinator.changeResultProvider($0) }
+            )) {
+                Text("Apple 翻译").tag(TranslationProvider.apple)
+                ForEach(settings.services) { service in
+                    Text(service.displayName).tag(TranslationProvider.llm(service.id))
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Text(coordinator.resultProviderName ?? settings.snapshot().displayName)
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("切换翻译来源并重新翻译，不消耗会话次数")
     }
 
     /// 内联语言下拉选择器：点击展开语言列表，选中即改，

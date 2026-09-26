@@ -18,6 +18,7 @@ final class AppCoordinator: ObservableObject {
     @Published var settings: SettingsStore
 
     @Published private(set) var resultProviderName: String?
+    @Published private(set) var resultProvider: TranslationProvider?
     @Published var lastResult: TranslationResult?
     @Published var isWorking = false
     @Published var statusMessage: String?
@@ -340,6 +341,16 @@ final class AppCoordinator: ObservableObject {
         return try await llmTranslation.translate(request, config: config)
     }
 
+    func changeResultProvider(_ provider: TranslationProvider) {
+        if case .llm(let id) = provider,
+           !settings.services.contains(where: { $0.id == id }) { return }
+        let currentProvider = resultProvider ?? settings.provider
+        settings.selectProvider(provider)
+        guard currentProvider != provider else { return }
+        // Reuse the admitted input; changing providers never consumes a selection.
+        retranslateLastInput()
+    }
+
     func changeResultSourceLanguage(_ code: String) {
         guard settings.sourceLanguage != code else { return }
         settings.sourceLanguage = code
@@ -364,6 +375,7 @@ final class AppCoordinator: ObservableObject {
         let input = TranslationRequest(text: text, sourceLang: config.sourceLanguage,
             targetLang: config.targetLanguage, imageData: imageData, source: source)
         resultProviderName = config.displayName
+        resultProvider = config.provider
         lastResult = nil
         lastRequest = input
         isWorking = true
