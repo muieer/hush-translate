@@ -1,7 +1,7 @@
 import Foundation
 
 /// 翻译请求
-struct TranslationRequest {
+struct TranslationRequest: Sendable {
     var text: String
     var sourceLang: String
     var targetLang: String
@@ -10,7 +10,7 @@ struct TranslationRequest {
     /// 标识调用来源（影响提示词）
     var source: Source = .selection
 
-    enum Source {
+    enum Source: Sendable {
         case selection  // 选中文本
         case clipboard  // 剪贴板
         case screenshot // 截图
@@ -24,7 +24,7 @@ struct TranslationResult: Identifiable {
     let translated: String
     let sourceLang: String
     let targetLang: String
-    let model: String
+    let providerName: String
     let latency: TimeInterval
     let timestamp: Date
     let source: TranslationRequest.Source

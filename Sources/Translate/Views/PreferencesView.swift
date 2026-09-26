@@ -8,11 +8,14 @@ struct PreferencesView: View {
     let editSession: PreferencesEditSession
 
     private enum Tab: Hashable { case general, session, hotkey, screenshot, advanced }
-    private enum Field: Hashable { case apiBaseURL, apiKey, model, sessionCount, sessionMinutes, requestTimeout, systemPrompt }
+    private enum Field: Hashable { case sessionCount, sessionMinutes, requestTimeout, systemPrompt }
     private enum SaveStatus: Equatable {
         case unsaved, saved, invalid(String)
     }
 
+    @State private var serviceDrafts = ServiceDrafts()
+    @State private var addingService = false
+    @State private var newService = LLMService()
     @State private var selectedTab: Tab = .general
     @State private var drafts: [Field: String]
     @State private var statuses: [Field: SaveStatus] = [:]
@@ -22,9 +25,6 @@ struct PreferencesView: View {
         self.settings = settings
         self.editSession = editSession
         _drafts = State(initialValue: [
-            .apiBaseURL: settings.apiBaseURL,
-            .apiKey: settings.apiKey,
-            .model: settings.model,
             .sessionCount: String(settings.sessionCount),
             .sessionMinutes: String(settings.sessionMinutes),
             .requestTimeout: settings.requestTimeout.formatted(.number),
@@ -40,8 +40,19 @@ struct PreferencesView: View {
             screenshotTab.tabItem { Label("截图翻译", systemImage: "camera.viewfinder") }.tag(Tab.screenshot)
             advancedTab.tabItem { Label("高级", systemImage: "slider.horizontal.3") }.tag(Tab.advanced)
         }
-        .frame(width: 580, height: 460)
+        .frame(width: 580, height: 530)
         .padding(8)
+        .sheet(isPresented: $addingService) {
+            Form {
+                Section("添加 OpenAI 兼容服务") {
+                    LLMServiceEditor(draft: $newService, isNew: true, onSave: {
+                        if settings.saveService(newService) { addingService = false }
+                    }, onCancel: { addingService = false })
+                }
+            }
+            .formStyle(.grouped)
+            .frame(width: 540, height: 380)
+        }
         .onAppear { coordinator.refreshPermissions() }
         .onChange(of: focusedField) { oldField, newField in
             if oldField != newField, let oldField { commit(oldField) }
@@ -56,13 +67,41 @@ struct PreferencesView: View {
 
     private var generalTab: some View {
         Form {
-            Section("OpenAI 兼容接口") {
-                settingsRow("Base URL", field: .apiBaseURL)
-                settingsRow("API Key", field: .apiKey)
-                settingsRow("Model", field: .model)
-                Text("支持 LM Studio、Ollama、OpenAI、DeepSeek、SiliconFlow、Moonshot 等所有 OpenAI 兼容 chat 接口。")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            Section("翻译来源") {
+                Picker("翻译来源", selection: Binding(
+                    get: { settings.provider }, set: { settings.selectProvider($0) }
+                )) {
+                    Text("Apple 翻译").tag(TranslationProvider.apple)
+                    ForEach(settings.services) { service in
+                        Text(service.displayName).tag(TranslationProvider.llm(service.id))
+                    }
+                }
+                if settings.provider == .apple {
+                    Text("使用 macOS 内置翻译，无需配置接口或密钥。首次翻译时，系统可能需要下载语言资源。")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                Button("添加服务") {
+                    newService = LLMService()
+                    addingService = true
+                }
+            }
+            if let service = settings.selectedService {
+                Section("OpenAI 兼容服务") {
+                    LLMServiceEditor(draft: Binding(
+                        get: { serviceDrafts.draft(for: service) },
+                        set: { serviceDrafts.update($0) }
+                    ), isNew: false, onSave: {
+                        if settings.saveService(serviceDrafts.draft(for: service)) {
+                            serviceDrafts.discard(service.id)
+                        }
+                    }, onCancel: {
+                        serviceDrafts.discard(service.id)
+                    }, onDelete: {
+                        settings.deleteService(service.id)
+                        serviceDrafts.discard(service.id)
+                    })
+                    .id(service.id)
+                }
             }
 
             Section("语言") {
@@ -199,13 +238,21 @@ struct PreferencesView: View {
     private var screenshotTab: some View {
         Form {
             Section("OCR 模式") {
-                Picker("OCR 模式", selection: $settings.ocrMode) {
+                Picker("OCR 模式", selection: Binding(
+                    get: { settings.provider == .apple ? .local : settings.ocrMode },
+                    set: { settings.ocrMode = $0 }
+                )) {
                     ForEach(OCRMode.allCases) { mode in
                         Text(mode.label).tag(mode)
                     }
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
+                .disabled(settings.provider == .apple)
+                if settings.provider == .apple {
+                    Text("Apple 翻译使用本地 Vision 识别截图文字，再翻译识别结果。切换到 OpenAI 兼容服务后可选择其他 OCR 模式。")
+                        .font(.caption).foregroundColor(.secondary)
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     bulletRow("本地 Vision：免费、离线、Mac 原生。识别不到时降级到远程（仅「本地优先」模式）。")
@@ -230,10 +277,11 @@ struct PreferencesView: View {
 
     private var advancedTab: some View {
         Form {
-            Section("请求") {
+            Section("请求（仅 OpenAI 兼容服务）") {
                 settingsRow("超时 (秒)", field: .requestTimeout, width: 80)
+                    .disabled(settings.provider == .apple)
             }
-            Section("自定义系统提示词") {
+            Section("自定义系统提示词（仅 OpenAI 兼容服务）") {
                 TextEditor(text: draftBinding(for: .systemPrompt))
                     .font(.system(size: 12))
                     .frame(height: 120)
@@ -261,6 +309,7 @@ struct PreferencesView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            .disabled(settings.provider == .apple)
             Section("诊断") {
                 Button("检查权限") {
                     coordinator.refreshPermissions()
@@ -333,17 +382,10 @@ struct PreferencesView: View {
         }
     }
 
-    @ViewBuilder
     private func input(for field: Field) -> some View {
-        if field == .apiKey {
-            SecureField("", text: draftBinding(for: field))
-                .focused($focusedField, equals: field)
-                .onSubmit { commit(field, explicit: true) }
-        } else {
-            TextField("", text: draftBinding(for: field))
-                .focused($focusedField, equals: field)
-                .onSubmit { commit(field, explicit: true) }
-        }
+        TextField("", text: draftBinding(for: field))
+            .focused($focusedField, equals: field)
+            .onSubmit { commit(field, explicit: true) }
     }
 
     private func saveStatus(for field: Field) -> some View {
@@ -361,9 +403,6 @@ struct PreferencesView: View {
 
     private func matchesSavedValue(_ draft: String, for field: Field) -> Bool {
         switch field {
-        case .apiBaseURL: return draft == settings.apiBaseURL
-        case .apiKey: return draft == settings.apiKey
-        case .model: return draft == settings.model
         case .sessionCount: return positiveInteger(draft) == settings.sessionCount
         case .sessionMinutes: return positiveInteger(draft) == settings.sessionMinutes
         case .requestTimeout: return Double(draft) == settings.requestTimeout
@@ -385,12 +424,6 @@ struct PreferencesView: View {
         guard !editSession.isClosing else { return }
         guard explicit || statuses[field] == .unsaved || isInvalid(field) else { return }
         switch field {
-        case .apiBaseURL:
-            settings.apiBaseURL = drafts[field] ?? ""
-        case .apiKey:
-            settings.apiKey = drafts[field] ?? ""
-        case .model:
-            settings.model = drafts[field] ?? ""
         case .sessionCount:
             guard let value = positiveInteger(field) else {
                 statuses[field] = .invalid("请输入有效正整数；当前仍使用 \(settings.sessionCount) 次。")
@@ -424,5 +457,71 @@ struct PreferencesView: View {
     private func isInvalid(_ field: Field) -> Bool {
         if case .invalid = statuses[field] { return true }
         return false
+    }
+}
+
+/// No focus/submit autosave: a service is committed atomically by the explicit Save button.
+private struct LLMServiceEditor: View {
+    @Binding var draft: LLMService
+    let isNew: Bool
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    var onDelete: (() -> Void)? = nil
+    @State private var attemptedSave = false
+    @State private var savedValue: LLMService?
+
+    var body: some View {
+        field("服务名称", keyPath: \.name, errorKey: .name, placeholder: "例如：火山云")
+        field("接口地址（Base URL）", keyPath: \.apiBaseURL, errorKey: .apiBaseURL,
+              placeholder: "https://api.example.com/v1")
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent("API Key") {
+                SecureField("服务密钥", text: $draft.apiKey).textFieldStyle(.roundedBorder)
+            }
+            error(for: .apiKey)
+        }
+        field("模型名称", keyPath: \.model, errorKey: .model, placeholder: "接口使用的模型名称")
+        Text("填写 API 基础地址，不含 /chat/completions。支持云端服务和本地 OpenAI 兼容服务。")
+            .font(.caption).foregroundColor(.secondary)
+        HStack {
+            Button("保存") {
+                attemptedSave = true
+                guard draft.validationErrors.isEmpty else { return }
+                savedValue = draft.normalized
+                onSave()
+            }
+            .buttonStyle(.borderedProminent)
+            Button(isNew ? "取消" : "取消修改") {
+                onCancel()
+                attemptedSave = false
+                savedValue = nil
+            }
+            if savedValue == draft {
+                Label("已保存", systemImage: "checkmark.circle.fill")
+                    .font(.caption).foregroundColor(.green)
+            }
+            Spacer()
+            if let onDelete {
+                Button("删除服务", role: .destructive, action: onDelete)
+            }
+        }
+    }
+
+    private func field(_ title: String, keyPath: WritableKeyPath<LLMService, String>,
+                       errorKey: LLMService.Field, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title) {
+                TextField(placeholder, text: $draft[dynamicMember: keyPath])
+                    .textFieldStyle(.roundedBorder)
+            }
+            error(for: errorKey)
+        }
+    }
+
+    @ViewBuilder
+    private func error(for field: LLMService.Field) -> some View {
+        if attemptedSave, let message = draft.validationErrors[field] {
+            Text(message).font(.caption).foregroundColor(.red)
+        }
     }
 }

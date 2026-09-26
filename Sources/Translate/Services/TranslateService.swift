@@ -23,7 +23,8 @@ actor TranslateService {
     }
 
     func translate(_ request: TranslationRequest, config: TranslateConfig) async throws -> String {
-        let endpoint = config.apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let service = config.service else { throw TranslateError.emptyResponse }
+        let endpoint = service.normalized.apiBaseURL
         guard !endpoint.isEmpty, let url = URL(string: endpoint + "/chat/completions") else {
             throw TranslateError.invalidURL(endpoint)
         }
@@ -31,7 +32,7 @@ actor TranslateService {
         let messages = buildMessages(for: request, config: config)
 
         let body: [String: Any] = [
-            "model":       config.model,
+            "model":       service.model,
             "messages":    messages,
             "temperature": 0.3,
             "stream":      false,
@@ -40,11 +41,11 @@ actor TranslateService {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("Bearer \(service.apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
         urlRequest.timeoutInterval = config.requestTimeout
 
-        Log.api.info("POST \(url.absoluteString, privacy: .public) model=\(config.model, privacy: .public) textLen=\(request.text.count) hasImage=\(request.imageData != nil)")
+        Log.api.info("POST \(url.absoluteString, privacy: .public) model=\(service.model, privacy: .public) textLen=\(request.text.count) hasImage=\(request.imageData != nil)")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: urlRequest)

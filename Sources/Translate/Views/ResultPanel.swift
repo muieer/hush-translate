@@ -23,6 +23,7 @@ struct ResultPanelView: View {
             Divider()
             footer
         }
+        .background { AppleTranslationHost(service: coordinator.appleTranslation) }
         .padding(14)
         .frame(minWidth: 412, maxWidth: .infinity)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -32,7 +33,7 @@ struct ResultPanelView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            if let m = coordinator.lastResult?.model {
+            if let m = coordinator.resultProviderName {
                 Text(m)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)

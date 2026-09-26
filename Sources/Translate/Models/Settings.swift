@@ -1,19 +1,81 @@
 import Foundation
 import SwiftUI
 
-/// 给 TranslateService 用的不可变配置快照（Sendable，actor 内部安全）
+/// Built-in Apple translation is a permanent choice, never a deletable service record.
+enum TranslationProvider: Codable, Hashable, Sendable {
+    case apple
+    case llm(UUID)
+}
+
+struct LLMService: Codable, Identifiable, Equatable, Sendable {
+    var id = UUID()
+    var name = ""
+    var apiBaseURL = ""
+    var apiKey = ""
+    var model = ""
+
+    var displayName: String { "\(name) - \(model)" }
+
+    enum Field: Hashable { case name, apiBaseURL, apiKey, model }
+
+    var validationErrors: [Field: String] {
+        var errors: [Field: String] = [:]
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.name] = "请输入服务名称，例如「火山云」。"
+        }
+        let address = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URLComponents(string: address),
+           ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+           let host = url.host, !host.isEmpty,
+           url.query == nil, url.fragment == nil, url.user == nil, url.password == nil {
+            // Base URL only; the client appends /chat/completions.
+        } else {
+            errors[.apiBaseURL] = "请输入有效的 HTTP 或 HTTPS 基础地址，例如 https://api.example.com/v1。"
+        }
+        if apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.apiKey] = "请输入 API Key；本地服务按其要求填写。"
+        }
+        if model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.model] = "请输入接口使用的模型名称。"
+        }
+        return errors
+    }
+
+    var normalized: Self {
+        var value = self
+        value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.apiBaseURL = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        while value.apiBaseURL.hasSuffix("/") { value.apiBaseURL.removeLast() }
+        value.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.model = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value
+    }
+}
+
+/// Immutable request snapshot, including the selected service's identity and parameters.
 struct TranslateConfig: Sendable {
-    let apiBaseURL: String
-    let apiKey: String
-    let model: String
+    let provider: TranslationProvider
+    let service: LLMService?
     let sourceLanguage: String
     let targetLanguage: String
     let requestTimeout: Double
     let systemPrompt: String
+    let ocrMode: OCRMode
+
+    var displayName: String { service?.displayName ?? "Apple 翻译" }
+    var usesApple: Bool { provider == .apple }
+}
+
+/// Drafts live only as long as the preferences window; selection never commits them.
+struct ServiceDrafts {
+    private var values: [UUID: LLMService] = [:]
+    func draft(for service: LLMService) -> LLMService { values[service.id] ?? service }
+    mutating func update(_ service: LLMService) { values[service.id] = service }
+    mutating func discard(_ id: UUID) { values.removeValue(forKey: id) }
 }
 
 /// 截图 OCR 模式
-enum OCRMode: String, CaseIterable, Identifiable {
+enum OCRMode: String, CaseIterable, Identifiable, Sendable {
     case local    // 本地 Vision（免费、离线）
     case remote   // 把图直接发给多模态大模型
     case both     // 本地优先，失败/空时降级到远程
@@ -82,9 +144,54 @@ final class SettingsStore: ObservableObject {
         return value
     }
 
-    @Published var apiBaseURL: String { didSet { defaults.set(apiBaseURL, forKey: "apiBaseURL") } }
-    @Published var apiKey: String { didSet { defaults.set(apiKey, forKey: "apiKey") } }
-    @Published var model: String { didSet { defaults.set(model, forKey: "model") } }
+    @Published private(set) var services: [LLMService]
+    @Published private(set) var provider: TranslationProvider
+
+    var selectedService: LLMService? {
+        guard case .llm(let id) = provider else { return nil }
+        return services.first { $0.id == id }
+    }
+
+    func selectProvider(_ value: TranslationProvider) {
+        if case .llm(let id) = value, !services.contains(where: { $0.id == id }) {
+            provider = .apple
+        } else {
+            provider = value
+        }
+        persistProviders()
+    }
+
+    @discardableResult
+    func saveService(_ draft: LLMService) -> Bool {
+        guard draft.validationErrors.isEmpty else { return false }
+        let value = draft.normalized
+        if let index = services.firstIndex(where: { $0.id == value.id }) {
+            services[index] = value
+        } else {
+            services.append(value)
+            provider = .llm(value.id)
+        }
+        persistProviders()
+        return true
+    }
+
+    func deleteService(_ id: UUID) {
+        services.removeAll { $0.id == id }
+        if provider == .llm(id) { provider = .apple }
+        persistProviders()
+    }
+
+    private struct ProviderSettings: Codable {
+        var version = 1
+        var services: [LLMService]
+        var selected: TranslationProvider
+    }
+
+    private func persistProviders() {
+        if let data = try? JSONEncoder().encode(ProviderSettings(services: services, selected: provider)) {
+            defaults.set(data, forKey: "translation.providers")
+        }
+    }
 
     @Published var sourceLanguage: String { didSet { defaults.set(sourceLanguage, forKey: "sourceLanguage") } }
     @Published var targetLanguage: String { didSet { defaults.set(targetLanguage, forKey: "targetLanguage") } }
@@ -101,9 +208,26 @@ final class SettingsStore: ObservableObject {
         self.defaultSessionMode = SessionMode(rawValue: d.string(forKey: "session.mode") ?? "") ?? .count
         self.sessionCount = Self.positiveInteger(d, key: "session.count", fallback: 3)
         self.sessionMinutes = Self.positiveInteger(d, key: "session.minutes", fallback: 10)
-        self.apiBaseURL           = d.string(forKey: "apiBaseURL") ?? "http://localhost:1234/v1"
-        self.apiKey               = d.string(forKey: "apiKey") ?? "lm-studio"
-        self.model                = d.string(forKey: "model") ?? "qwen2.5-7b-instruct"
+        if let data = d.data(forKey: "translation.providers"),
+           let saved = try? JSONDecoder().decode(ProviderSettings.self, from: data) {
+            self.services = saved.services
+            if case .llm(let id) = saved.selected, !saved.services.contains(where: { $0.id == id }) {
+                self.provider = .apple
+            } else {
+                self.provider = saved.selected
+            }
+        } else {
+            self.services = []
+            self.provider = .apple
+            // A corrupt new-format value must not resurrect previously deleted legacy records.
+            if d.object(forKey: "translation.providers") == nil,
+               ["apiBaseURL", "apiKey", "model"].contains(where: { d.object(forKey: $0) != nil }) {
+                self.services = [LLMService(name: "原有服务",
+                    apiBaseURL: d.string(forKey: "apiBaseURL") ?? "http://localhost:1234/v1",
+                    apiKey: d.string(forKey: "apiKey") ?? "lm-studio",
+                    model: d.string(forKey: "model") ?? "qwen2.5-7b-instruct")]
+            }
+        }
         self.sourceLanguage       = d.string(forKey: "sourceLanguage") ?? "auto"
         self.targetLanguage       = d.string(forKey: "targetLanguage") ?? "zh-Hans"
         self.ocrMode              = OCRMode(rawValue: d.string(forKey: "ocrMode") ?? "local") ?? .local
@@ -117,6 +241,7 @@ final class SettingsStore: ObservableObject {
         } else {
             self.systemPrompt = SettingsStore.defaultSystemPrompt
         }
+        persistProviders()
     }
 
     /// 系统默认的提示词模板。翻译整段内容，只输出译文。
@@ -132,18 +257,18 @@ final class SettingsStore: ObservableObject {
     /// 不可变快照，actor 间传递
     func snapshot() -> TranslateConfig {
         TranslateConfig(
-            apiBaseURL: apiBaseURL,
-            apiKey: apiKey,
-            model: model,
+            provider: provider,
+            service: selectedService,
             sourceLanguage: sourceLanguage,
             targetLanguage: targetLanguage,
             requestTimeout: requestTimeout,
-            systemPrompt: systemPrompt
+            systemPrompt: systemPrompt,
+            ocrMode: provider == .apple ? .local : ocrMode
         )
     }
 
     /// 全部语言（标签、code）
-    static let languages: [(label: String, code: String)] = [
+    nonisolated static let languages: [(label: String, code: String)] = [
         ("自动检测",       "auto"),
         ("中文（简体）",   "zh-Hans"),
         ("中文（繁体）",   "zh-Hant"),
