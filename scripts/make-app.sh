@@ -112,6 +112,10 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 cp "$PRODUCTS/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info/Info.plist "$APP_BUNDLE/Contents/Info.plist"
+for localization in Info/*.lproj; do
+    [[ -d "$localization" ]] || continue
+    ditto "$localization" "$APP_BUNDLE/Contents/Resources/$(basename "$localization")"
+done
 if [[ -n "$BUILD_NUMBER" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP_BUNDLE/Contents/Info.plist"
 fi

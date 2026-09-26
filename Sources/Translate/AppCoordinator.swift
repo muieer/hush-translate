@@ -95,7 +95,7 @@ final class AppCoordinator: ObservableObject {
         do {
             try selectionTranslation.startDefaultSession()
         } catch {
-            showSessionStartAlert("翻译会话配置无效：次数和分钟数必须为正整数。")
+            showSessionStartAlert(L10n.tr("翻译会话配置无效：次数和分钟数必须为正整数。"))
         }
     }
 
@@ -104,7 +104,7 @@ final class AppCoordinator: ObservableObject {
         do {
             try translationSession.start(configuration: configuration)
         } catch {
-            showSessionStartAlert("翻译会话配置无效：次数和分钟数必须为正整数。")
+            showSessionStartAlert(L10n.tr("翻译会话配置无效：次数和分钟数必须为正整数。"))
         }
     }
 
@@ -123,7 +123,7 @@ final class AppCoordinator: ObservableObject {
         // 截图/选区失败时不要留一个空面板。
         let captureID = beginRequest()
         errorMessage = nil
-        statusMessage = "请框选截图区域…"
+        statusMessage = L10n.tr("请框选截图区域…")
         isWorking = true
 
         let overlay = ScreenshotOverlayController()
@@ -151,10 +151,10 @@ final class AppCoordinator: ObservableObject {
                 if let captureError = error as? ScreenshotService.CaptureError,
                    case .permissionDenied = captureError {
                     self.hasScreenCapturePermission = false
-                    self.showError("需要「屏幕录制」权限才能截图翻译。\n请到 系统设置 → 隐私与安全性 → 屏幕录制 勾选「HushTranslate」，授权后重新触发本功能。")
+                    self.showError(L10n.tr("需要「屏幕录制」权限才能截图翻译。\n请到 系统设置 → 隐私与安全性 → 屏幕录制 勾选「HushTranslate」，授权后重新触发本功能。"))
                     self.requestScreenCapturePermission()
                 } else {
-                    self.showError("截图失败：\(error.localizedDescription)")
+                    self.showError(L10n.format("截图失败：%@", error.localizedDescription))
                 }
             }
         )
@@ -163,7 +163,7 @@ final class AppCoordinator: ObservableObject {
     /// 翻译剪贴板内容
     func translateClipboardNow() {
         guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else {
-            showError("剪贴板为空，请先复制要翻译的文本。")
+            showError(L10n.tr("剪贴板为空，请先复制要翻译的文本。"))
             return
         }
         runTranslate(text: text, imageData: nil, source: .clipboard)
@@ -187,7 +187,7 @@ final class AppCoordinator: ObservableObject {
             .environmentObject(self)
         let host = NSHostingController(rootView: view)
         let win = NSWindow(contentViewController: host)
-        win.title = "HushTranslate 设置"
+        win.title = L10n.tr("HushTranslate 设置")
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         win.setContentSize(NSSize(width: 600, height: 550))
         win.center()
@@ -213,7 +213,7 @@ final class AppCoordinator: ObservableObject {
     func openAbout() {
         if aboutWindow == nil {
             let win = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
-            win.title = "关于 HushTranslate"
+            win.title = L10n.tr("关于 HushTranslate")
             win.styleMask = [.titled, .closable, .miniaturizable]
             win.setContentSize(NSSize(width: 480, height: 320))
             win.center()
@@ -222,6 +222,14 @@ final class AppCoordinator: ObservableObject {
         }
         NSApp.activate(ignoringOtherApps: true)
         aboutWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    func refreshLocalization() {
+        sessionPresentation.refresh()
+        settingsWindow?.title = L10n.tr("HushTranslate 设置")
+        aboutWindow?.title = L10n.tr("关于 HushTranslate")
+        if resultProvider == .apple { resultProviderName = L10n.tr("Apple 翻译") }
+        refreshResultPanel()
     }
 
     // MARK: - 权限
@@ -254,9 +262,9 @@ final class AppCoordinator: ObservableObject {
     private func showSessionStartAlert(_ message: String) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "无法开启划词翻译会话"
+        alert.messageText = L10n.tr("无法开启划词翻译会话")
         alert.informativeText = message
-        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: L10n.tr("好"))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }
@@ -265,7 +273,7 @@ final class AppCoordinator: ObservableObject {
     private func ensurePermissionsForSelection() -> Bool {
         // Only an explicit session start can prompt; passive selections remain silent.
         if AXIsProcessTrusted() == false {
-            showSessionStartAlert("需要「辅助功能」权限才能开启划词翻译会话。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。")
+            showSessionStartAlert(L10n.tr("需要「辅助功能」权限才能开启划词翻译会话。\n请到 设置 → 隐私与安全性 → 辅助功能 勾选「HushTranslate」。\n\n授权后请重新打开本 App。"))
             requestAccessibilityPermission()
             return false
         }
@@ -283,7 +291,7 @@ final class AppCoordinator: ObservableObject {
 
     private func processScreenshot(_ image: NSImage) {
         guard let data = Self.pngData(from: image) else {
-            showError("截图无法转换为图片，请重新截图。")
+            showError(L10n.tr("截图无法转换为图片，请重新截图。"))
             return
         }
         runTranslate(text: "", imageData: data, source: .screenshot)
@@ -304,7 +312,7 @@ final class AppCoordinator: ObservableObject {
 
     private enum InputError: LocalizedError {
         case emptyOCR
-        var errorDescription: String? { "OCR 未识别到任何文字，请重新框选包含清晰文字的区域。" }
+        var errorDescription: String? { L10n.tr("OCR 未识别到任何文字，请重新框选包含清晰文字的区域。") }
     }
 
     private func prepare(_ input: TranslationRequest, config: TranslateConfig) async throws -> TranslationRequest {
@@ -312,7 +320,7 @@ final class AppCoordinator: ObservableObject {
         if request.source == .screenshot, let image = request.imageData,
            request.text.isEmpty, config.ocrMode != .remote {
             do {
-                statusMessage = "识别图中文字…"
+                statusMessage = L10n.tr("识别图中文字…")
                 request.text = try await recognize(image)
                 try Task.checkCancellation()
                 if request.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -380,7 +388,7 @@ final class AppCoordinator: ObservableObject {
         lastRequest = input
         isWorking = true
         errorMessage = nil
-        statusMessage = "翻译中…"
+        statusMessage = L10n.tr("翻译中…")
         if presentWindow { showResultPanel() } else { refreshResultPanel() }
 
         workingTask = Task { [weak self] in
@@ -392,7 +400,7 @@ final class AppCoordinator: ObservableObject {
                 guard self.requestID == id else { return }
                 // Cache OCR text, retaining the image when moving between providers.
                 self.lastRequest?.text = request.text
-                self.statusMessage = "翻译中…"
+                self.statusMessage = L10n.tr("翻译中…")
                 let translated = try await self.translate(request, config: config)
                 try Task.checkCancellation()
                 guard self.requestID == id else { return }
@@ -408,7 +416,7 @@ final class AppCoordinator: ObservableObject {
                 guard !Task.isCancelled, self.requestID == id else { return }
                 self.isWorking = false
                 self.statusMessage = nil
-                self.errorMessage = error is CancellationError ? "翻译已取消，请重新选择文字或切换语言后重试。" : error.localizedDescription
+                self.errorMessage = error is CancellationError ? L10n.tr("翻译已取消，请重新选择文字或切换语言后重试。") : error.localizedDescription
                 self.refreshResultPanel()
             }
         }

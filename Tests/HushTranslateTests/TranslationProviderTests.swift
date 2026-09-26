@@ -18,7 +18,7 @@ final class TranslationProviderTests: XCTestCase {
         try withStore { settings, defaults in
             XCTAssertEqual(settings.provider, .apple)
             XCTAssertTrue(settings.services.isEmpty)
-            XCTAssertEqual(settings.snapshot().displayName, "Apple 翻译")
+            XCTAssertEqual(settings.snapshot().displayName, L10n.tr("Apple 翻译"))
             settings.deleteService(UUID())
             XCTAssertEqual(settings.provider, .apple)
             let first = service()

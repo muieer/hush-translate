@@ -15,43 +15,44 @@ struct StatusBarMenu: View {
     }
 
     var body: some View {
-        Text("划词翻译：\(presentation.status.title)")
+        Text(L10n.format("划词翻译：%@", presentation.status.title))
 
-        Button("关闭会话") { coordinator.closeTranslationSession() }
+        Button(L10n.tr("关闭会话")) { coordinator.closeTranslationSession() }
             .disabled(!presentation.status.isActive)
-        Button("持续开启") { coordinator.startTranslationSession(.always) }
-        Button("开启 \(settings.sessionCount) 次") {
+        Button(L10n.tr("持续开启")) { coordinator.startTranslationSession(.always) }
+        Button(L10n.startForSelections(settings.sessionCount)) {
             coordinator.startTranslationSession(.count(settings.sessionCount))
         }
-        Button("开启 \(settings.sessionMinutes) 分钟") {
+        Button(L10n.startForMinutes(settings.sessionMinutes)) {
             coordinator.startTranslationSession(.timer(minutes: settings.sessionMinutes))
         }
 
         Divider()
 
-        Button("截图翻译") { coordinator.translateScreenshotNow() }
+        Button(L10n.tr("截图翻译")) { coordinator.translateScreenshotNow() }
 
-        Button("剪贴板翻译") { coordinator.translateClipboardNow() }
-
-        Divider()
-
-        Button("显示翻译窗口") { coordinator.showLastResult() }
-
-        Button("设置") { coordinator.openPreferences() }
+        Button(L10n.tr("剪贴板翻译")) { coordinator.translateClipboardNow() }
 
         Divider()
 
-        Button("关于") { coordinator.openAbout() }
+        Button(L10n.tr("显示翻译窗口")) { coordinator.showLastResult() }
+
+        Button(L10n.tr("设置")) { coordinator.openPreferences() }
 
         Divider()
 
-        Button("退出") { NSApp.terminate(nil) }
+        Button(L10n.tr("关于")) { coordinator.openAbout() }
+
+        Divider()
+
+        Button(L10n.tr("退出")) { NSApp.terminate(nil) }
     }
 }
 
 /// Observes the same presentation as the open menu, including while the menu is closed.
 struct SessionStatusLabel: View {
     @ObservedObject var presentation: SessionPresentation
+    @ObservedObject private var settings = AppCoordinator.shared.settings
 
     private static let iconSize = NSSize(width: 22, height: 18)
 
@@ -74,7 +75,7 @@ struct SessionStatusLabel: View {
                 Image(systemName: "character.bubble")
             }
         }
-        .accessibilityLabel("划词翻译：\(presentation.status.title)")
-        .help("划词翻译：\(presentation.status.title)")
+        .accessibilityLabel(L10n.format("划词翻译：%@", presentation.status.title))
+        .help(L10n.format("划词翻译：%@", presentation.status.title))
     }
 }

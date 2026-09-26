@@ -54,7 +54,7 @@ final class ScreenshotProviderTests: XCTestCase {
         XCTAssertNil(f.requests[0].0.imageData)
         XCTAssertEqual(f.requests[0].1.provider, .apple)
         XCTAssertEqual(f.coordinator.lastResult?.original, "recognized")
-        XCTAssertEqual(f.coordinator.lastResult?.providerName, "Apple 翻译")
+        XCTAssertEqual(f.coordinator.lastResult?.providerName, L10n.tr("Apple 翻译"))
         let service = f.selectLLM()
         XCTAssertEqual(f.requests.count, 1)
         f.coordinator.changeResultProvider(.llm(service.id))
@@ -163,7 +163,7 @@ final class ScreenshotProviderTests: XCTestCase {
         await coordinator.appleTranslation.execute(id: id) { _ in "你好" }
         try await waitUntil { !coordinator.isWorking }
         XCTAssertEqual(coordinator.lastResult?.translated, "你好")
-        XCTAssertEqual(coordinator.lastResult?.providerName, "Apple 翻译")
+        XCTAssertEqual(coordinator.lastResult?.providerName, L10n.tr("Apple 翻译"))
         coordinator.changeResultTargetLanguage("ja")
         try await waitUntil { coordinator.appleTranslation.job != nil }
         coordinator.appleTranslation.cancel()

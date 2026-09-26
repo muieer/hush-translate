@@ -1,5 +1,7 @@
 # 本机开发与发布
 
+[English](LOCAL_RUN.en.md)
+
 ## 构建与启动
 
 在 Apple Silicon Mac 上使用完整 Xcode。应用最低部署目标为 macOS 15.0，`Package.swift` 与 `Info/Info.plist` 需保持一致。

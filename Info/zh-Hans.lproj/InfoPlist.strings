@@ -1,0 +1,5 @@
+"NSAppleEventsUsageDescription" = "HushTranslate 需要在屏幕录制与辅助功能权限下工作。";
+"NSScreenCaptureDescription" = "HushTranslate 使用屏幕录制权限实现截图翻译。";
+"NSDesktopFolderUsageDescription" = "HushTranslate 需要访问桌面以保存截图。";
+"NSDocumentsFolderUsageDescription" = "HushTranslate 需要访问文档目录以保存历史记录。";
+"NSDownloadsFolderUsageDescription" = "HushTranslate 需要访问下载目录以保存截图。";

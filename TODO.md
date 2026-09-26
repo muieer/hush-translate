@@ -1,5 +1,7 @@
 # 待办
 
+[English](TODO.en.md)
+
 ## 云端模型过滤内容时的翻译失败处理
 
 - 2026-09-23 实测：火山方舟 `deepseek-v4-flash-ga-260731` 翻译一段日文记者提问时，HTTP 200 的 Chat Completions 响应包含 `finish_reason: content_filter`，`message.content` 是“无法回答”一类拒答文字；应用目前会把它显示为译文。英文对照文本可正常翻译。

@@ -200,7 +200,7 @@ private final class ScreenshotSelectionView: NSView {
     }
 
     private func drawHintBanner() {
-        let text = "拖动框选翻译区域 · ESC 取消"
+        let text = L10n.tr("拖动框选翻译区域 · ESC 取消")
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
             .foregroundColor: NSColor.white,
