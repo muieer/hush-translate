@@ -82,11 +82,13 @@ enum OCRMode: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var label: String {
+    var label: String { label(for: L10n.language) }
+
+    func label(for language: InterfaceLanguage) -> String {
         switch self {
-        case .local:  return L10n.tr("本地 Vision")
-        case .remote: return L10n.tr("多模态大模型")
-        case .both:   return L10n.tr("本地优先")
+        case .local:  return L10n.tr("本地 Vision", language: language)
+        case .remote: return L10n.tr("多模态大模型", language: language)
+        case .both:   return L10n.tr("本地优先", language: language)
         }
     }
 }
@@ -94,11 +96,13 @@ enum OCRMode: String, CaseIterable, Identifiable, Sendable {
 enum SessionMode: String, CaseIterable, Identifiable {
     case always, count, timer
     var id: String { rawValue }
-    var label: String {
+    var label: String { label(for: L10n.language) }
+
+    func label(for language: InterfaceLanguage) -> String {
         switch self {
-        case .always: return L10n.tr("持续开启")
-        case .count: return L10n.tr("按次数开启")
-        case .timer: return L10n.tr("按分钟开启")
+        case .always: return L10n.tr("持续开启", language: language)
+        case .count: return L10n.tr("按次数开启", language: language)
+        case .timer: return L10n.tr("按分钟开启", language: language)
         }
     }
 }
