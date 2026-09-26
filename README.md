@@ -15,7 +15,7 @@ HushTranslate 面向以自主阅读为主、偶尔需要翻译的用户，提供
 
 ![HushTranslate 操作演示](image/introduction.gif)
 
-版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+版本变化见 [CHANGELOG.md](document/CHANGELOG.md)。
 
 ## 功能特征
 
@@ -38,7 +38,7 @@ HushTranslate 免费分发，适用于 Apple Silicon Mac。2.0.0 起要求 macOS
 5. 启动后，根据系统提示和所需功能授予「辅助功能」「屏幕录制」等权限。应用常驻菜单栏。
 6. 默认使用 Apple 翻译，无需填写接口或密钥。macOS 26.4 及以上显式选择低延时策略，较早版本使用系统默认策略；需要语言资源时，按系统提示下载。若需要 LLM，可在「设置 → 通用」添加 OpenAI 兼容服务；API Key 由用户自行获取，API 费用由自己的服务商账号承担。
 
-具体配置见下方「首次使用」和 [使用说明](USER_GUIDE.md)（[English](USER_GUIDE.en.md)）。
+具体配置见下方「首次使用」和 [使用说明](document/USER_GUIDE.md)（[English](document/USER_GUIDE.en.md)）。
 
 ## 从源码构建与使用
 
@@ -59,7 +59,7 @@ open build/HushTranslate.app --args --show-settings
 
 脚本会生成 `build/HushTranslate.app`，第二条命令启动应用并打开设置。应用常驻菜单栏。
 
-日常开发可使用 `./scripts/make-app.sh debug`，需要有效的 Apple Development 签名证书。更多开发说明见 [LOCAL_RUN.md](LOCAL_RUN.md)（[English](LOCAL_RUN.en.md)）。
+日常开发可使用 `./scripts/make-app.sh debug`，需要有效的 Apple Development 签名证书。更多开发说明见 [LOCAL_RUN.md](document/LOCAL_RUN.md)（[English](document/LOCAL_RUN.en.md)）。
 
 ### 首次使用
 
