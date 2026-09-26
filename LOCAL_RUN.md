@@ -15,6 +15,7 @@ open build/HushTranslate.app --args --show-settings
 ## 工具链
 
 - 本机：macOS 26.6.1，Apple Silicon，Xcode 27.0 (27A266a)。
+- 应用的最低部署目标为 macOS 15.0；`Package.swift` 和 `Info/Info.plist` 需保持一致。
 - 必须先打开完整 Xcode，完成首次安装与许可步骤。
 - 脚本尊重 `DEVELOPER_DIR`；未指定时使用系统选中的 Xcode。如果系统仍选中 Command Line Tools，则使用 `/Applications/Xcode.app/Contents/Developer`。
 - 本次未修改系统全局 `xcode-select` 设置。也可显式运行：
@@ -74,7 +75,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 
 ## 已知源码告警
 
-原项目仍有 `CGWindowListCreateImage` 弃用告警，以及 `SettingsStore.languages` 跨 actor 访问告警。当前 Swift 5 语言模式下不阻止构建；本次未扩大到功能或并发代码改造。
+当前仍有 `SettingsStore.languages` 跨 actor 访问告警。Swift 5 语言模式下不阻止构建。
 
 ## 本次验证结果
 
