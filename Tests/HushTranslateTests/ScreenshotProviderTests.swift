@@ -55,9 +55,9 @@ final class ScreenshotProviderTests: XCTestCase {
         XCTAssertEqual(f.requests[0].1.provider, .apple)
         XCTAssertEqual(f.coordinator.lastResult?.original, "recognized")
         XCTAssertEqual(f.coordinator.lastResult?.providerName, "Apple 翻译")
-        f.selectLLM()
+        let service = f.selectLLM()
         XCTAssertEqual(f.requests.count, 1)
-        f.coordinator.changeResultTargetLanguage("en")
+        f.coordinator.changeResultProvider(.llm(service.id))
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertEqual(f.requests.count, 2)
         XCTAssertEqual(f.requests[1].0.imageData, Data([1, 2, 3]))
@@ -72,8 +72,7 @@ final class ScreenshotProviderTests: XCTestCase {
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertEqual(f.ocrCalls, 0)
         XCTAssertEqual(f.requests[0].0.text, "")
-        f.settings.selectProvider(.apple)
-        f.coordinator.changeResultTargetLanguage("ja")
+        f.coordinator.changeResultProvider(.apple)
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertEqual(f.ocrCalls, 1)
         XCTAssertEqual(f.requests[1].0.text, "recognized")

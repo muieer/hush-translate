@@ -44,6 +44,64 @@ final class ResultTranslationTests: XCTestCase {
 
     private enum TestError: Error { case oldFailure, timeout }
 
+    func testProviderChangesReuseSelectionWithoutConsumingOrRestartingSession() async throws {
+        let f = Fixture()
+        let service = LLMService(name: "Cloud", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "model")
+        XCTAssertTrue(f.settings.saveService(service))
+        f.settings.selectProvider(.apple)
+        try f.coordinator.translationSession.start(configuration: .count(2))
+        XCTAssertTrue(f.coordinator.translationSession.consumeValidSelection())
+        f.start()
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "first")
+        try await waitUntil { !f.coordinator.isWorking }
+
+        f.coordinator.changeResultProvider(.llm(service.id))
+        try await waitUntil { f.calls.count == 2 }
+        XCTAssertEqual(f.calls[1].request.text, "original")
+        XCTAssertEqual(f.calls[1].request.source, .selection)
+        XCTAssertEqual(f.calls[1].config.service, service)
+        XCTAssertEqual(f.coordinator.translationSession.state, .count(remaining: 1))
+        XCTAssertEqual(SettingsStore(defaults: f.defaults).provider, .llm(service.id))
+        f.calls[1].continuation.resume(returning: "cloud")
+        try await waitUntil { !f.coordinator.isWorking }
+
+        XCTAssertTrue(f.coordinator.translationSession.consumeValidSelection())
+        XCTAssertEqual(f.coordinator.translationSession.state, .off)
+        f.coordinator.changeResultProvider(.apple)
+        try await waitUntil { f.calls.count == 3 }
+        XCTAssertEqual(f.calls[2].config.provider, .apple)
+        f.calls[2].continuation.resume(returning: "apple")
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.coordinator.translationSession.state, .off)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "apple")
+    }
+
+    func testProviderSwitchUsesDisplayedProviderAndIgnoresLateResponses() async throws {
+        let f = Fixture()
+        f.start()
+        try await waitUntil { f.calls.count == 1 }
+        let service = LLMService(name: "Cloud", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "model")
+        XCTAssertTrue(f.settings.saveService(service))
+        // Settings may already select the new provider while the result still uses Apple.
+        f.coordinator.changeResultProvider(.llm(service.id))
+        try await waitUntil { f.calls.count == 2 }
+        f.coordinator.changeResultProvider(.apple)
+        try await waitUntil { f.calls.count == 3 }
+        f.coordinator.changeResultProvider(.apple)
+        f.coordinator.changeResultProvider(.llm(UUID()))
+        f.calls[2].continuation.resume(returning: "latest")
+        try await waitUntil { !f.coordinator.isWorking }
+        f.calls[0].continuation.resume(returning: "stale")
+        f.calls[1].continuation.resume(throwing: TestError.oldFailure)
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(f.calls.count, 3)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "latest")
+        XCTAssertEqual(f.coordinator.resultProvider, .apple)
+        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
+        XCTAssertNil(f.coordinator.errorMessage)
+    }
+
     func testLanguageChangesReuseTextAndPersistWithoutConsumingSession() async throws {
         let f = Fixture()
         try f.coordinator.translationSession.start(configuration: .count(3))
