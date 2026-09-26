@@ -4,8 +4,10 @@
 
 ## Unreleased
 
+## 2.1.0 (since 2.0.0)
+
 - Added a Simplified Chinese and English interface switch under Settings → General → App Language. Simplified Chinese remains the default, independent of translation languages.
-- Added English versions of the user, development, changelog, and other project documents.
+- Added English versions of the user guide, development guide, changelog, and other project documents, and moved the documentation into the `document` directory.
 
 ## 2.0.0 (since 1.1.0)
 
