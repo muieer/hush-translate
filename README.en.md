@@ -15,25 +15,27 @@ For example, enable translation for the next 3 selections, work through a few di
 
 ![HushTranslate usage demo](image/introduction.gif)
 
+See [CHANGELOG.md](CHANGELOG.md) for release changes.
+
 ## Features
 
 - **Translation sessions**: continuous, next N selections, or next N minutes, with configurable counts and durations.
 - **Screenshot translation**: select a screen region and translate text recognized with local OCR by default, or use a multimodal model that accepts images.
 - **Translation providers**: use built-in Apple Translation by default, or save and switch between multiple cloud or local OpenAI-compatible services.
-- **Lightweight results**: read translations in a floating panel with less app switching.
+- **Lightweight results**: read translations in a floating panel, and switch providers or languages to translate the same input again without selecting it again or consuming a session count.
 - **Menu bar and shortcuts**: check session status, start or close sessions, and customize keyboard shortcuts.
 - **Clipboard translation**: translate text you have already copied.
 
 ## Installation and first launch
 
-HushTranslate is distributed free of charge for Apple Silicon Macs running macOS 15 or later. Release builds use ad-hoc signing, without Apple Developer ID signing or Apple Notarization.
+HushTranslate is distributed free of charge for Apple Silicon Macs. Version 2.0.0 requires macOS 15 or later; macOS 14 is no longer supported. Release builds use ad-hoc signing, without Apple Developer ID signing or Apple Notarization.
 
 1. Download `HushTranslate-x.x.x.zip` from [GitHub Releases](https://github.com/muieer/hush-translate/releases).
 2. Extract the ZIP file.
 3. Move `HushTranslate.app` to `/Applications` (recommended, but optional).
 4. Double-click the app. macOS Gatekeeper may block the first launch. If this happens, open System Settings → Privacy & Security, find the HushTranslate message, click Open Anyway, and follow the confirmation prompts.
 5. After launch, follow the system prompts to grant Accessibility, Screen Recording, and any other permissions needed for the features you use. The app runs in the menu bar.
-6. Apple Translation is selected by default and requires no endpoint or API key. The app uses the low-latency strategy and reuses installed traditional translation language resources first; if none are available, follow the system prompt to download language resources. To use an LLM, add an OpenAI-compatible service in Settings → General; obtain an API key from your provider, which bills usage to your own account.
+6. Apple Translation is selected by default and requires no endpoint or API key. On macOS 26.4 or later, the app explicitly selects the low-latency strategy; earlier systems use the default strategy. Follow the system prompt if language resources need downloading. To use an LLM, add an OpenAI-compatible service in Settings → General; obtain an API key from your provider, which bills usage to your own account.
 
 See “First use” below and the [user guide](USER_GUIDE.md) (Chinese) for configuration details.
 
@@ -66,4 +68,4 @@ For development, use `./scripts/make-app.sh debug`, which requires a valid Apple
 
 Screenshot translation can be started directly from the menu bar without an active translation session.
 
-Save multiple LLM services and switch between them with the translation provider menu. Service edits require an explicit Save; switching providers preserves drafts within the settings window, and closing settings discards unsaved edits. Apple Translation cannot be deleted. Upgrades select Apple by default and preserve the old endpoint as “原有服务” (Previous Service). Selected text, clipboard, and screenshots all use the current provider. Apple screenshot translation uses local Vision OCR.
+Save multiple LLM services and switch between them in settings or the results panel. Service edits require an explicit Save; switching providers preserves drafts within the settings window, and closing settings discards unsaved edits. Apple Translation cannot be deleted. Upgrades select Apple by default and preserve the old endpoint as “原有服务” (Previous Service). Selected text, clipboard, and screenshots all use the current provider. Apple screenshot translation uses local Vision OCR. With an LLM provider, screenshots are sent to the selected service even when local Vision OCR is selected.

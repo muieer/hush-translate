@@ -1,62 +1,31 @@
-# 本机开发环境
+# 本机开发与发布
 
-更新日期：2026-09-22。当前基线分支：`codex/local-development-baseline`。
+## 构建与启动
 
-## 标准构建与启动
+在 Apple Silicon Mac 上使用完整 Xcode。应用最低部署目标为 macOS 15.0，`Package.swift` 与 `Info/Info.plist` 需保持一致。
 
 ```bash
 ./scripts/make-app.sh debug
 open build/HushTranslate.app --args --show-settings
 ```
 
-应用常驻菜单栏。启动参数只在进程新启动时生效；已有 HushTranslate 运行时应先退出旧进程。
-发布配置构建使用 `./scripts/make-app.sh release`。本机和 GitHub Actions 共用该脚本。
+应用常驻菜单栏。`--show-settings` 仅在新进程启动时生效；已有实例运行时，先从菜单栏退出。发布配置使用 `./scripts/make-app.sh release`，本机和 GitHub Actions 共用同一脚本。脚本尊重 `DEVELOPER_DIR`；系统选中 Command Line Tools 时，会使用 `/Applications/Xcode.app/Contents/Developer` 中的完整 Xcode。
 
-## 工具链
+## 依赖与签名
 
-- 本机：macOS 26.6.1，Apple Silicon，Xcode 27.0 (27A266a)。
-- 应用的最低部署目标为 macOS 15.0；`Package.swift` 和 `Info/Info.plist` 需保持一致。
-- 必须先打开完整 Xcode，完成首次安装与许可步骤。
-- 脚本尊重 `DEVELOPER_DIR`；未指定时使用系统选中的 Xcode。如果系统仍选中 Command Line Tools，则使用 `/Applications/Xcode.app/Contents/Developer`。
-- 本次未修改系统全局 `xcode-select` 设置。也可显式运行：
-
-```bash
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/make-app.sh debug
-```
-
-## 依赖与资源
-
-- 依赖正式来源：`https://github.com/sindresorhus/KeyboardShortcuts.git`。
-- 版本固定为 `2.4.0`，正式提交为 `1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27`。
-- `Package.swift` 固定版本，`Package.resolved` 固定正式提交，两者应一起纳入版本管理。
-- 已移除项目级本地镜像；不再使用先前下载的源码归档、本地 Git 提交或 `#Preview` 补丁。
-- 首次构建需要 GitHub 网络连接。脚本关闭共享依赖仓库缓存，依赖 checkout 存放在 `.build/xcode-packages`，构建数据在 `.build/xcode`。
-- 使用完整 Xcode 的 `xcodebuild` 构建 Swift package；它生成的资源访问代码支持 `Contents/Resources`。
-- 资源 bundle 使用 Xcode 标准结构，并从内到外签名，最终执行 `codesign --verify --deep --strict`。
-- Debug 构建必须使用钥匙串中的稳定 `Apple Development` 证书；脚本会自动选择第一个有效证书，也可通过 `HUSHTRANSLATE_SIGNING_IDENTITY` 显式指定名称或 SHA-1。
-- 从旧 ad-hoc 构建首次切换到稳定开发签名后，辅助功能和屏幕录制权限可能需要重新授权一次；之后保持相同 Bundle ID 与开发签名，可避免常规重建反复产生新的代码身份。
-- 若缺少开发证书，先在 Xcode → Settings → Accounts 登录 Apple ID，并用 `security find-identity -v -p codesigning` 确认存在 `Apple Development` identity。
-- Release 构建使用 ad-hoc 签名，通过 GitHub Releases 免费分发 ZIP；不加入 Apple Developer Program，不使用 Developer ID 签名或 Apple 公证，也不需要 Apple CI Secrets。
-- 已删除运行时修改应用目录的资源修复代码，应用根目录不再放软链接。
+- `KeyboardShortcuts` 固定为 2.4.0；`Package.swift` 与 `Package.resolved` 应一同更新。首次构建需要访问 GitHub，脚本使用 `.build/xcode-packages` 中的依赖检出和 `.build/xcode` 中的构建数据。
+- Debug 构建需要有效的 `Apple Development` 签名证书；可用 `security find-identity -v -p codesigning` 检查。若有多张证书，可通过 `HUSHTRANSLATE_SIGNING_IDENTITY` 指定证书名称或 SHA-1。稳定的开发签名有助于避免重建后反复授权辅助功能和屏幕录制。
+- Release 构建使用 ad-hoc 签名。脚本组装资源后从内到外签名，并执行 `codesign --verify --deep --strict`。
 
 ## 版本与发布
 
-- 在 `Info/Info.plist` 中手动维护 `CFBundleShortVersionString`（例如 `0.1.0`）；普通提交、本地构建和 CI 都不会自动修改正式版本号。
-- 本地 Debug 和 Release 默认沿用源文件中的 `CFBundleVersion`（当前为 `1`）。GitHub Actions 将 `github.run_number` 通过 `HUSHTRANSLATE_BUILD_NUMBER` 传给构建脚本，只在签名前修改产物 `build/HushTranslate.app/Contents/Info.plist`，不回写或提交仓库文件。
-- `build.yml` 只接受手动触发或其他 workflow 调用，产物为 `HushTranslate.app.zip`。构建号来自触发本次构建的 workflow；手动构建和 tag 发布各自计数，重新运行同一次 workflow 不增加 run number。
-- 发布前先修改并提交正式版本号，再在对应提交上创建并推送 `vMAJOR.MINOR.PATCH` tag，例如 `v0.1.0`。`release.yml` 先检查 tag 格式及其与正式版本号的一致性，不一致时直接失败，不自动修正版本号。
-- 检查通过后调用 `build.yml`，将 ZIP 命名为 `HushTranslate-0.1.0.zip`，创建 GitHub Release 并上传。安装与首次放行步骤见 README 和 USER_GUIDE。
+- 在 `Info/Info.plist` 中维护 `CFBundleShortVersionString`。本地构建沿用其中的 `CFBundleVersion`；GitHub Actions 使用 `HUSHTRANSLATE_BUILD_NUMBER` 仅修改构建产物的构建号。
+- 先提交版本号和发布文档，再在同一提交上创建并推送 `vMAJOR.MINOR.PATCH` 标签。`.github/workflows/release.yml` 检查标签与版本号一致，随后调用 `.github/workflows/build.yml` 构建 ZIP 并创建 GitHub Release。
+- 发布版为 Apple Silicon 构建，要求 macOS 15.0 或更高版本。用户安装与首次运行步骤见 [README.md](README.md) 和 [USER_GUIDE.md](USER_GUIDE.md)。
 
-## 重建
+## 自动化验证
 
-关闭 Xcode 中正在构建的项目和旧应用后，删除项目 `.build/` 与 `build/` 即可清理编译产物，再执行标准构建命令。
-不要删除受版本管理的 `Package.resolved`。若要升级依赖，应同时更新版本约束与锁文件并重新验证。
-
-验证干净构建时，只需复制 `Package.swift`、`Package.resolved`、`Sources/`、`Tests/`、`Info/`、`scripts/` 到独立目录，然后执行 `./scripts/make-app.sh release`；不复制 `.build/`、`.swiftpm/` 或旧应用。
-
-## Session 核心单元测试
-
-使用完整 Xcode 运行测试，不启动应用、不注册快捷键，也不调用模型：
+以下命令编译并运行单元测试，不启动应用或执行 GUI 操作：
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
@@ -68,36 +37,4 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
   test CODE_SIGNING_ALLOWED=NO
 ```
 
-`TranslationSessionTests` 使用可控时间和到期回调验证状态转换，不需要真实等待数分钟。
-默认配置为 `COUNT(3)`。第三阶段新增“翻译会话”设置页，将默认模式、次数和分钟数保存到 UserDefaults；应用重新启动后恢复配置，但运行中的 Session 不持久化，启动时仍为 OFF。`⌃⌥⌘D` 启动新的默认 Session；菜单栏支持主动关闭、持续开启、开启配置次数和开启配置分钟数。菜单栏图标及下拉菜单直接观察会话状态，TIMER 的剩余分钟向上取整，每分钟刷新一次显示，到期关闭仍由 Session 核心处理。
-
-`SelectionTranslationTests` 验证 Session 与捕获的连接、过期和替换时的迟到回调、快捷键对应的默认启动行为及候选鼠标手势。测试不操作系统剪贴板，也不执行 GUI 交互。
-
-## 已知源码告警
-
-当前仍有 `SettingsStore.languages` 跨 actor 访问告警。Swift 5 语言模式下不阻止构建。
-
-## 本次验证结果
-
-- Debug 构建、打包、严格签名验证通过。
-- 仅复制源码、锁文件和脚本到全新临时目录，禁用共享依赖仓库缓存后，Release 构建及严格签名验证通过。
-- 已将该 Release 应用复制回当时的 `build/Translate.app`，删除整个临时构建目录后启动，进程保持运行，主线程处于正常 AppKit 事件循环，未发现新的崩溃报告。
-- 应用启动后再次执行严格签名验证通过，应用根目录无资源软链接。
-- 桌面自动化读取设置窗口超时，因此本次未通过 UI 自动化复验设置标签和快捷键录制；翻译及交互验收沿用用户先前的验证，后续功能改动再按需验证。
-- 旧 SwiftPM 构建目录、本地依赖镜像源码、预览补丁和本次临时诊断文件已清理。
-
-## 2026-09-23 开发签名验证
-
-- 登录钥匙串中的开发证书起初缺少有效的 Apple WWDR G3 中间证书；从 Apple 官方证书库安装后，`security find-identity -v -p codesigning` 显示有效的 Apple Development identity。
-- 两次 Debug 构建均通过 `codesign --verify --deep --strict`；两次产物的 `Identifier`、`Authority` 和 `TeamIdentifier` 完全一致。
-- 显式指定证书名称或 SHA-1 构建也保持相同代码身份；无效的显式身份会在构建前被拒绝。
-- Release 构建通过，产物仍为 ad-hoc 签名。
-
-## 第三阶段验证（2026-09-23）
-
-- 34 项测试全部通过（原有 Session 核心、Selection 集成及新增 5 项设置/状态测试）。
-- 新增测试验证：默认模式与参数重新读取、无效值拒绝及损坏配置回退、快捷键使用最新配置并重新开始、菜单展示随会话状态变化、剩余分钟边界。
-- 标准 Debug 构建、打包与严格签名验证通过，产物为 `build/HushTranslate.app`。
-- 截图和剪贴板菜单继续调用原有独立入口，不经过 Session 判定；相关服务及结果面板未修改。
-- 桌面自动化读取应用超时，未完成真实菜单点击、进程重启后的界面复验及模型端到端翻译验收。配置重载与状态更新已经自动化测试验证。
-- 现有 `SettingsStore.languages` actor 隔离及旧测试 weak 变量告警仍存在；本阶段未扩展处理。
+`TranslationSessionTests` 验证会话状态转换，`SelectionTranslationTests` 验证划词候选手势与会话连接。翻译来源、Apple 翻译及截图路由由各自测试覆盖。需要实际鼠标操作、系统授权或真实模型服务的行为，应在构建后由用户手动验收。
