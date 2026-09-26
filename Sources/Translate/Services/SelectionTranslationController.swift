@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 protocol SelectionMonitoring: AnyObject {
+    /// Deliver text only after the user confirms the selection with the translation button.
     func start(shouldCapture: @escaping () -> Bool, onCapture: @escaping (String) -> Void)
     func stop()
 }
