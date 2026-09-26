@@ -73,10 +73,10 @@ jobs:
           from pathlib import Path
 
           version = os.environ["RELEASE_VERSION"]
-          sections = re.split(r"(?=^## )", Path("CHANGELOG.md").read_text(), flags=re.M)
+          sections = re.split(r"(?=^## )", Path("document/CHANGELOG.md").read_text(), flags=re.M)
           notes = next((section for section in sections if section.startswith(f"## {version}（")), None)
           if notes is None:
-              raise SystemExit(f"CHANGELOG.md lacks release notes for {version}")
+              raise SystemExit(f"document/CHANGELOG.md lacks release notes for {version}")
           Path("dist/release-notes.md").write_text(notes.strip() + "\n")
           PY
 

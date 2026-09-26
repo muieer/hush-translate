@@ -15,7 +15,7 @@ For example, enable translation for the next 3 selections, work through a few di
 
 ![HushTranslate usage demo](image/introduction.gif)
 
-See [CHANGELOG.en.md](CHANGELOG.en.md) for release changes.
+See [CHANGELOG.en.md](document/CHANGELOG.en.md) for release changes.
 
 ## Features
 
@@ -38,7 +38,7 @@ HushTranslate is distributed free of charge for Apple Silicon Macs. Version 2.0.
 5. After launch, follow the system prompts to grant Accessibility, Screen Recording, and any other permissions needed for the features you use. The app runs in the menu bar.
 6. Apple Translation is selected by default and requires no endpoint or API key. On macOS 26.4 or later, the app explicitly selects the low-latency strategy; earlier systems use the default strategy. Follow the system prompt if language resources need downloading. To use an LLM, add an OpenAI-compatible service in Settings → General; obtain an API key from your provider, which bills usage to your own account.
 
-See “First use” below and the [user guide](USER_GUIDE.en.md) for configuration details.
+See “First use” below and the [user guide](document/USER_GUIDE.en.md) for configuration details.
 
 ## Build from source and use
 
@@ -59,7 +59,7 @@ open build/HushTranslate.app --args --show-settings
 
 The script creates `build/HushTranslate.app`. The second command launches the app and opens its settings. The app runs in the menu bar.
 
-For development, use `./scripts/make-app.sh debug`, which requires a valid Apple Development signing certificate. See [LOCAL_RUN.en.md](LOCAL_RUN.en.md) for further development notes.
+For development, use `./scripts/make-app.sh debug`, which requires a valid Apple Development signing certificate. See [LOCAL_RUN.en.md](document/LOCAL_RUN.en.md) for further development notes.
 
 ### First use
 

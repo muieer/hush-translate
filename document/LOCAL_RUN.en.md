@@ -23,7 +23,7 @@ HushTranslate remains in the menu bar. `--show-settings` only works when startin
 
 - Maintain `CFBundleShortVersionString` in `Info/Info.plist`. Local builds use its `CFBundleVersion`; GitHub Actions applies `HUSHTRANSLATE_BUILD_NUMBER` only to the built app.
 - Commit the version and complete release notes in both [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.en.md](CHANGELOG.en.md), then create and push the `vMAJOR.MINOR.PATCH` tag on that commit. `.github/workflows/release.yml` checks that the tag matches the version, calls `.github/workflows/build.yml` for the ZIP, and uses the matching Chinese changelog section for the GitHub Release body.
-- Release builds target Apple Silicon and macOS 15 or later. Installation steps are in the [README](README.en.md) and [user guide](USER_GUIDE.en.md).
+- Release builds target Apple Silicon and macOS 15 or later. Installation steps are in the [README](../README.en.md) and [user guide](USER_GUIDE.en.md).
 
 ## Automated verification
 

@@ -22,8 +22,8 @@ open build/HushTranslate.app --args --show-settings
 ## 版本与发布
 
 - 在 `Info/Info.plist` 中维护 `CFBundleShortVersionString`。本地构建沿用其中的 `CFBundleVersion`；GitHub Actions 使用 `HUSHTRANSLATE_BUILD_NUMBER` 仅修改构建产物的构建号。
-- 先提交版本号和 `CHANGELOG.md` 中该版本的完整记录，再在同一提交上创建并推送 `vMAJOR.MINOR.PATCH` 标签。`.github/workflows/release.yml` 检查标签与版本号一致，随后调用 `.github/workflows/build.yml` 构建 ZIP，并提取 `CHANGELOG.md` 对应版本的条目作为 GitHub Release 正文。
-- 发布版为 Apple Silicon 构建，要求 macOS 15.0 或更高版本。用户安装与首次运行步骤见 [README.md](README.md) 和 [USER_GUIDE.md](USER_GUIDE.md)。
+- 先提交版本号和 `document/CHANGELOG.md` 中该版本的完整记录，再在同一提交上创建并推送 `vMAJOR.MINOR.PATCH` 标签。`.github/workflows/release.yml` 检查标签与版本号一致，随后调用 `.github/workflows/build.yml` 构建 ZIP，并提取 `document/CHANGELOG.md` 对应版本的条目作为 GitHub Release 正文。
+- 发布版为 Apple Silicon 构建，要求 macOS 15.0 或更高版本。用户安装与首次运行步骤见 [README.md](../README.md) 和 [USER_GUIDE.md](USER_GUIDE.md)。
 
 ## 自动化验证
 
