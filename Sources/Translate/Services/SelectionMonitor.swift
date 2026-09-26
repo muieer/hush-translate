@@ -32,7 +32,7 @@ struct SelectionGestureTracker {
     }
 }
 
-/// Uses the existing Cmd+C / changeCount capture path, only while a session is active.
+/// Presents a selection action during an active session and copies only on confirmation.
 @MainActor
 final class SelectionMonitor: SelectionMonitoring {
     private var monitor: Any?
@@ -119,18 +119,35 @@ final class SelectionMonitor: SelectionMonitoring {
         let fallback = NSRect(x: min(start.x, end.x), y: min(start.y, end.y),
                               width: max(1, abs(start.x - end.x)), height: max(18, abs(start.y - end.y)))
         captureTask = Task { [weak self] in
-            await self?.tryCapture(generation: generation, fallback: fallback)
+            await self?.presentCandidate(generation: generation, fallback: fallback)
         }
     }
 
-    private func tryCapture(generation: UUID, fallback: NSRect) async {
+    private func presentCandidate(generation: UUID, fallback: NSRect) async {
         do {
             // Allow the target application to finish updating its selection.
             try await Task.sleep(nanoseconds: 100_000_000)
             guard canContinue(generation: generation) else { return }
-            let sourcePID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            guard let sourcePID = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
             let bounds = selectedTextBounds() ?? fallback
             let candidate = candidateID
+            actionPanel.show(above: bounds) { [weak self] in
+                guard let self, self.candidateID == candidate,
+                      self.generation == generation,
+                      NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePID,
+                      self.shouldCapture?() == true else { return }
+                self.captureTask = Task { [weak self] in
+                    await self?.captureConfirmedSelection(generation: generation,
+                                                         candidate: candidate, sourcePID: sourcePID)
+                }
+            }
+        } catch {
+            // Cancellation is expected when another gesture or session supersedes this one.
+        }
+    }
+
+    private func captureConfirmedSelection(generation: UUID, candidate: UUID, sourcePID: pid_t) async {
+        do {
             let pb = NSPasteboard.general
             let old = pb.changeCount
             simulateCopy()
@@ -139,20 +156,13 @@ final class SelectionMonitor: SelectionMonitoring {
             for _ in 0..<50 {
                 try await Task.sleep(nanoseconds: 20_000_000)
                 guard !Task.isCancelled, self.generation == generation,
-                      shouldCapture?() == true else { return }
+                      candidateID == candidate, shouldCapture?() == true,
+                      NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePID else { return }
                 if pb.changeCount != old {
                     guard let text = pb.string(forType: .string),
                           !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                    guard candidateID == candidate,
-                          NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePID else { return }
-                    actionPanel.show(above: bounds) { [weak self] in
-                        guard let self, self.candidateID == candidate,
-                              self.generation == generation,
-                              NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePID,
-                              self.shouldCapture?() == true else { return }
-                        self.candidateID = UUID()
-                        self.onCapture?(text)
-                    }
+                    candidateID = UUID()
+                    onCapture?(text)
                     return
                 }
             }
