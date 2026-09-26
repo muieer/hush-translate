@@ -34,15 +34,19 @@ struct PreferencesView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            generalTab.tabItem { Label(L10n.tr("通用"), systemImage: "gearshape") }.tag(Tab.general)
-            sessionTab.tabItem { Label(L10n.tr("翻译会话"), systemImage: "character.cursor.ibeam") }.tag(Tab.session)
-            hotkeyTab.tabItem { Label(L10n.tr("快捷键"), systemImage: "keyboard") }.tag(Tab.hotkey)
+            generalTab.tabItem { tabLabel("通用", icon: "gearshape") }.tag(Tab.general)
+            sessionTab.tabItem { tabLabel("翻译会话", icon: "character.cursor.ibeam") }.tag(Tab.session)
+            hotkeyTab.tabItem { tabLabel("快捷键", icon: "keyboard") }.tag(Tab.hotkey)
             screenshotTab.tabItem {
-                Label(settings.interfaceLanguage == .english ? "Screenshots" : L10n.tr("截图翻译"),
-                      systemImage: "camera.viewfinder")
+                Label {
+                    Text(verbatim: settings.interfaceLanguage == .english ? "Screenshots" : "截图翻译")
+                } icon: {
+                    Image(systemName: "camera.viewfinder")
+                }
             }.tag(Tab.screenshot)
-            advancedTab.tabItem { Label(L10n.tr("高级"), systemImage: "slider.horizontal.3") }.tag(Tab.advanced)
+            advancedTab.tabItem { tabLabel("高级", icon: "slider.horizontal.3") }.tag(Tab.advanced)
         }
+        .id(settings.interfaceLanguage)
         .frame(width: 580, height: 530)
         .padding(8)
         .sheet(isPresented: $addingService) {
@@ -71,6 +75,14 @@ struct PreferencesView: View {
             if let focusedField { commit(focusedField) }
             focusedField = nil
         }
+    }
+
+    private func tabLabel(_ title: String, icon: String) -> some View {
+        Label { localized(title) } icon: { Image(systemName: icon) }
+    }
+
+    private func localized(_ chinese: String) -> Text {
+        Text(verbatim: L10n.tr(chinese, language: settings.interfaceLanguage))
     }
 
     // MARK: - 通用
@@ -139,22 +151,28 @@ struct PreferencesView: View {
 
     private var sessionTab: some View {
         Form {
-            Section(L10n.tr("快捷键默认启动")) {
-                Picker(L10n.tr("会话类型"), selection: $settings.defaultSessionMode) {
+            Section {
+                Picker(selection: $settings.defaultSessionMode) {
                     ForEach(SessionMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                        Text(verbatim: mode.label(for: settings.interfaceLanguage)).tag(mode)
                     }
+                } label: {
+                    localized("会话类型")
                 }
-                Text(L10n.tr("按快捷键会启动新的默认会话，再次按下会重新开始。开启后，在其他应用中划词并点击「翻译」按钮即可翻译；关闭会话请使用菜单栏。"))
+                localized("按快捷键会启动新的默认会话，再次按下会重新开始。开启后，在其他应用中划词并点击「翻译」按钮即可翻译；关闭会话请使用菜单栏。")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            } header: {
+                localized("快捷键默认启动")
             }
-            Section(L10n.tr("会话参数")) {
-                sessionSettingsRow(L10n.tr("默认次数"), field: .sessionCount, unit: L10n.tr("次"))
-                sessionSettingsRow(L10n.tr("默认时长"), field: .sessionMinutes, unit: L10n.tr("分钟"))
-                Text(L10n.tr("菜单栏的「开启 N 次」与「开启 N 分钟」也使用这些值。修改设置将在下次启动会话时生效。"))
+            Section {
+                sessionSettingsRow("默认次数", field: .sessionCount, unit: "次")
+                sessionSettingsRow("默认时长", field: .sessionMinutes, unit: "分钟")
+                localized("菜单栏的「开启 N 次」与「开启 N 分钟」也使用这些值。修改设置将在下次启动会话时生效。")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            } header: {
+                localized("会话参数")
             }
         }
         .formStyle(.grouped)
@@ -254,39 +272,43 @@ struct PreferencesView: View {
 
     private var screenshotTab: some View {
         Form {
-            Section(L10n.tr("OCR 模式")) {
-                Picker(L10n.tr("OCR 模式"), selection: Binding(
+            Section {
+                Picker(selection: Binding(
                     get: { settings.provider == .apple ? .local : settings.ocrMode },
                     set: { settings.ocrMode = $0 }
                 )) {
                     ForEach(OCRMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                        Text(verbatim: mode.label(for: settings.interfaceLanguage)).tag(mode)
                     }
+                } label: {
+                    localized("OCR 模式")
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
                 .disabled(settings.provider == .apple)
                 if settings.provider == .apple {
-                    Text(L10n.tr("Apple 翻译使用本地 Vision 识别截图文字，再翻译识别结果。切换到 OpenAI 兼容服务后可选择其他 OCR 模式。"))
+                    localized("Apple 翻译使用本地 Vision 识别截图文字，再翻译识别结果。切换到 OpenAI 兼容服务后可选择其他 OCR 模式。")
                         .font(.caption).foregroundColor(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    bulletRow(L10n.tr("本地 Vision：先在 Mac 上识别文字；选择 OpenAI 兼容服务时，截图仍会发送给模型。识别失败时仅「本地优先」模式继续请求。"))
-                    bulletRow(L10n.tr("多模态大模型：直接把图片发给模型（需支持 vision 的模型，如 GPT-4o、Qwen2-VL、Qwen2.5-VL、Llama 3.2 Vision 等）。"))
-                    bulletRow(L10n.tr("本地优先：先本地 OCR 拿文字，识别为空或失败时由大模型识别；截图请求仍包含图片。"))
+                    bulletRow("本地 Vision：先在 Mac 上识别文字；选择 OpenAI 兼容服务时，截图仍会发送给模型。识别失败时仅「本地优先」模式继续请求。")
+                    bulletRow("多模态大模型：直接把图片发给模型（需支持 vision 的模型，如 GPT-4o、Qwen2-VL、Qwen2.5-VL、Llama 3.2 Vision 等）。")
+                    bulletRow("本地优先：先本地 OCR 拿文字，识别为空或失败时由大模型识别；截图请求仍包含图片。")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
+            } header: {
+                localized("OCR 模式")
             }
         }
         .formStyle(.grouped)
     }
 
-    private func bulletRow(_ text: String) -> some View {
+    private func bulletRow(_ chinese: String) -> some View {
         HStack(alignment: .top, spacing: 6) {
-            Text("•")
-            Text(text)
+            Text(verbatim: "•")
+            localized(chinese)
         }
     }
 
@@ -376,21 +398,21 @@ struct PreferencesView: View {
     private func sessionSettingsRow(_ title: String, field: Field, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text(title)
+                localized(title)
                 Spacer()
                 input(for: field)
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.leading)
                     .frame(width: 80, height: 28)
-                    .accessibilityLabel(title)
-                Text(sessionUnit(for: field, chinese: unit))
+                    .accessibilityLabel(L10n.tr(title, language: settings.interfaceLanguage))
+                Text(verbatim: sessionUnit(for: field, chinese: unit))
                     .foregroundColor(.secondary)
                     .frame(width: settings.interfaceLanguage == .english ? 92 : 28, alignment: .leading)
                 saveStatus(for: field)
             }
             if case .invalid(let message) = statuses[field] {
-                Text(message)
+                Text(verbatim: message)
                     .font(.caption)
                     .foregroundColor(.red)
             }

@@ -14,6 +14,15 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(L10n.startForMinutes(2, language: .english), "Start for 2 minutes")
     }
 
+    func testSessionAndScreenshotOptionLabelsUseSelectedLanguage() {
+        XCTAssertEqual(SessionMode.count.label(for: .chinese), "按次数开启")
+        XCTAssertEqual(SessionMode.count.label(for: .english), "By selection count")
+        XCTAssertEqual(OCRMode.both.label(for: .chinese), "本地优先")
+        XCTAssertEqual(OCRMode.both.label(for: .english), "On-device first")
+        XCTAssertEqual(L10n.tr("会话参数", language: .english), "Session Defaults")
+        XCTAssertEqual(L10n.tr("OCR 模式", language: .english), "OCR Mode")
+    }
+
     func testLanguagePersistsAndOnlyBuiltInPromptChanges() throws {
         let suite = "LocalizationTests.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
