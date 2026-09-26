@@ -9,7 +9,7 @@
 open build/HushTranslate.app --args --show-settings
 ```
 
-应用常驻菜单栏。`--show-settings` 仅在新进程启动时生效；已有实例运行时，先从菜单栏退出。发布配置使用 `./scripts/make-app.sh release`，本机和 GitHub Actions 共用同一脚本。脚本尊重 `DEVELOPER_DIR`；系统选中 Command Line Tools 时，会使用 `/Applications/Xcode.app/Contents/Developer` 中的完整 Xcode。
+应用常驻菜单栏。`--show-settings` 仅在新进程启动时生效；已有实例运行时，先从菜单栏退出。发布配置使用 `./scripts/make-app.sh release`，本机和 GitHub Actions 共用同一脚本。CI 使用 `macos-26` runner，以取得编译当前 Apple Translation API 所需的 Xcode。脚本尊重 `DEVELOPER_DIR`；系统选中 Command Line Tools 时，会使用 `/Applications/Xcode.app/Contents/Developer` 中的完整 Xcode。
 
 ## 依赖与签名
 
