@@ -21,7 +21,7 @@ struct LLMService: Codable, Identifiable, Equatable, Sendable {
     var validationErrors: [Field: String] {
         var errors: [Field: String] = [:]
         if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            errors[.name] = "请输入服务名称，例如「火山云」。"
+            errors[.name] = L10n.tr("请输入服务名称，例如「火山云」。")
         }
         let address = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if let url = URLComponents(string: address),
@@ -30,13 +30,13 @@ struct LLMService: Codable, Identifiable, Equatable, Sendable {
            url.query == nil, url.fragment == nil, url.user == nil, url.password == nil {
             // Base URL only; the client appends /chat/completions.
         } else {
-            errors[.apiBaseURL] = "请输入有效的 HTTP 或 HTTPS 基础地址，例如 https://api.example.com/v1。"
+            errors[.apiBaseURL] = L10n.tr("请输入有效的 HTTP 或 HTTPS 基础地址，例如 https://api.example.com/v1。")
         }
         if apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            errors[.apiKey] = "请输入 API Key；本地服务按其要求填写。"
+            errors[.apiKey] = L10n.tr("请输入 API Key；本地服务按其要求填写。")
         }
         if model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            errors[.model] = "请输入接口使用的模型名称。"
+            errors[.model] = L10n.tr("请输入接口使用的模型名称。")
         }
         return errors
     }
@@ -62,7 +62,7 @@ struct TranslateConfig: Sendable {
     let systemPrompt: String
     let ocrMode: OCRMode
 
-    var displayName: String { service?.displayName ?? "Apple 翻译" }
+    var displayName: String { service?.displayName ?? L10n.tr("Apple 翻译") }
     var usesApple: Bool { provider == .apple }
 }
 
@@ -84,9 +84,9 @@ enum OCRMode: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .local:  return "本地 Vision"
-        case .remote: return "多模态大模型"
-        case .both:   return "本地优先"
+        case .local:  return L10n.tr("本地 Vision")
+        case .remote: return L10n.tr("多模态大模型")
+        case .both:   return L10n.tr("本地优先")
         }
     }
 }
@@ -96,9 +96,9 @@ enum SessionMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .always: return "持续开启"
-        case .count: return "按次数开启"
-        case .timer: return "按分钟开启"
+        case .always: return L10n.tr("持续开启")
+        case .count: return L10n.tr("按次数开启")
+        case .timer: return L10n.tr("按分钟开启")
         }
     }
 }
@@ -106,6 +106,15 @@ enum SessionMode: String, CaseIterable, Identifiable {
 /// 翻译服务配置。UserDefaults 持久化。
 @MainActor
 final class SettingsStore: ObservableObject {
+
+    @Published var interfaceLanguage: InterfaceLanguage {
+        didSet {
+            defaults.set(interfaceLanguage.rawValue, forKey: "interface.language")
+            if systemPrompt == Self.defaultSystemPrompt(for: oldValue) {
+                systemPrompt = Self.defaultSystemPrompt(for: interfaceLanguage)
+            }
+        }
+    }
 
     @Published var defaultSessionMode: SessionMode {
         didSet { defaults.set(defaultSessionMode.rawValue, forKey: "session.mode") }
@@ -204,7 +213,9 @@ final class SettingsStore: ObservableObject {
     private let defaults: UserDefaults
 
     init(defaults d: UserDefaults = .standard) {
+        let initialInterfaceLanguage = InterfaceLanguage(rawValue: d.string(forKey: "interface.language") ?? "") ?? .chinese
         self.defaults = d
+        self.interfaceLanguage = initialInterfaceLanguage
         self.defaultSessionMode = SessionMode(rawValue: d.string(forKey: "session.mode") ?? "") ?? .count
         self.sessionCount = Self.positiveInteger(d, key: "session.count", fallback: 3)
         self.sessionMinutes = Self.positiveInteger(d, key: "session.minutes", fallback: 10)
@@ -222,7 +233,7 @@ final class SettingsStore: ObservableObject {
             // A corrupt new-format value must not resurrect previously deleted legacy records.
             if d.object(forKey: "translation.providers") == nil,
                ["apiBaseURL", "apiKey", "model"].contains(where: { d.object(forKey: $0) != nil }) {
-                self.services = [LLMService(name: "原有服务",
+                self.services = [LLMService(name: L10n.tr("原有服务", language: initialInterfaceLanguage),
                     apiBaseURL: d.string(forKey: "apiBaseURL") ?? "http://localhost:1234/v1",
                     apiKey: d.string(forKey: "apiKey") ?? "lm-studio",
                     model: d.string(forKey: "model") ?? "qwen2.5-7b-instruct")]
@@ -239,7 +250,7 @@ final class SettingsStore: ObservableObject {
         if let stored = d.string(forKey: "systemPrompt"), !stored.isEmpty {
             self.systemPrompt = stored
         } else {
-            self.systemPrompt = SettingsStore.defaultSystemPrompt
+            self.systemPrompt = SettingsStore.defaultSystemPrompt(for: initialInterfaceLanguage)
         }
         persistProviders()
     }
@@ -253,6 +264,18 @@ final class SettingsStore: ObservableObject {
     需要翻译的文本：
     {input}
     """
+
+    static let defaultSystemPromptEnglish = """
+    You are a professional translator. Translate the following text from {sourceLanguage} into {targetLanguage}.
+    Return only the translation, without explanations, quotation marks, or a preface. Preserve the original line breaks and formatting.
+
+    Text to translate:
+    {input}
+    """
+
+    static func defaultSystemPrompt(for language: InterfaceLanguage) -> String {
+        language == .english ? defaultSystemPromptEnglish : defaultSystemPrompt
+    }
 
     /// 不可变快照，actor 间传递
     func snapshot() -> TranslateConfig {
@@ -268,18 +291,18 @@ final class SettingsStore: ObservableObject {
     }
 
     /// 全部语言（标签、code）
-    nonisolated static let languages: [(label: String, code: String)] = [
-        ("自动检测",       "auto"),
-        ("中文（简体）",   "zh-Hans"),
-        ("中文（繁体）",   "zh-Hant"),
-        ("英语",           "en"),
-        ("日语",           "ja"),
-        ("韩语",           "ko"),
-        ("法语",           "fr"),
-        ("德语",           "de"),
-        ("俄语",           "ru"),
-        ("西班牙语",       "es"),
-        ("意大利语",       "it"),
-        ("葡萄牙语",       "pt"),
-    ]
+    nonisolated static var languages: [(label: String, code: String)] { [
+        (L10n.tr("自动检测"),       "auto"),
+        (L10n.tr("中文（简体）"),   "zh-Hans"),
+        (L10n.tr("中文（繁体）"),   "zh-Hant"),
+        (L10n.tr("英语"),           "en"),
+        (L10n.tr("日语"),           "ja"),
+        (L10n.tr("韩语"),           "ko"),
+        (L10n.tr("法语"),           "fr"),
+        (L10n.tr("德语"),           "de"),
+        (L10n.tr("俄语"),           "ru"),
+        (L10n.tr("西班牙语"),       "es"),
+        (L10n.tr("意大利语"),       "it"),
+        (L10n.tr("葡萄牙语"),       "pt"),
+    ] }
 }

@@ -159,13 +159,13 @@ enum AppleTranslationFailure: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupported:
-            return "Apple 翻译不支持当前语言组合。请更换源语言或目标语言，或在设置中选择其他翻译来源。"
+            return L10n.tr("Apple 翻译不支持当前语言组合。请更换源语言或目标语言，或在设置中选择其他翻译来源。")
         case .unidentified:
-            return "Apple 翻译无法识别源语言。请在结果窗口中手动选择源语言后重试。"
+            return L10n.tr("Apple 翻译无法识别源语言。请在结果窗口中手动选择源语言后重试。")
         case .emptyResult:
-            return "Apple 翻译未返回译文，请重新选择文字后重试。"
+            return L10n.tr("Apple 翻译未返回译文，请重新选择文字后重试。")
         case .failed(let detail):
-            return "Apple 翻译未完成：\(detail)"
+            return L10n.format("Apple 翻译未完成：%@", detail)
         }
     }
 }

@@ -51,11 +51,11 @@ struct ResultPanelView: View {
 
     private var providerMenu: some View {
         Menu {
-            Picker("翻译来源", selection: Binding(
+            Picker(L10n.tr("翻译来源"), selection: Binding(
                 get: { coordinator.resultProvider ?? settings.provider },
                 set: { coordinator.changeResultProvider($0) }
             )) {
-                Text("Apple 翻译").tag(TranslationProvider.apple)
+                Text(L10n.tr("Apple 翻译")).tag(TranslationProvider.apple)
                 ForEach(settings.services) { service in
                     Text(service.displayName).tag(TranslationProvider.llm(service.id))
                 }
@@ -70,7 +70,7 @@ struct ResultPanelView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("切换翻译来源并重新翻译，不消耗会话次数")
+        .help(L10n.tr("切换翻译来源并重新翻译，不消耗会话次数"))
     }
 
     /// 内联语言下拉选择器：点击展开语言列表，选中即改，
@@ -96,7 +96,7 @@ struct ResultPanelView: View {
         if coordinator.isWorking {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
-                Text(coordinator.statusMessage ?? "翻译中…")
+                Text(coordinator.statusMessage ?? L10n.tr("翻译中…"))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -104,7 +104,7 @@ struct ResultPanelView: View {
             .frame(minHeight: 40, maxHeight: 60)
         } else if let err = coordinator.errorMessage {
             VStack(alignment: .leading, spacing: 6) {
-                Label("出错了", systemImage: "exclamationmark.triangle.fill")
+                Label(L10n.tr("出错了"), systemImage: "exclamationmark.triangle.fill")
                     .foregroundColor(.orange)
                     .font(.system(size: 12, weight: .semibold))
                 Text(err)
@@ -117,7 +117,7 @@ struct ResultPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if !result.original.isEmpty {
-                        sectionTitle("原文")
+                        sectionTitle(L10n.tr("原文"))
                         selectableText(result.original, font: 11, color: .secondary)
                         copyButton(result.original, isOriginal: true)
                     }
@@ -125,14 +125,14 @@ struct ResultPanelView: View {
                         Divider()
                     }
                     if !result.translated.isEmpty {
-                        sectionTitle("译文")
+                        sectionTitle(L10n.tr("译文"))
                         selectableText(result.translated, font: 13, color: .primary)
                         copyButton(result.translated, isOriginal: false)
                     }
                 }
             }
         } else {
-            Text("等待翻译结果…")
+            Text(L10n.tr("等待翻译结果…"))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity)
@@ -142,17 +142,17 @@ struct ResultPanelView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Text("会话：\(sessionPresentation.status.title)")
+            Text(L10n.format("会话：%@", sessionPresentation.status.title))
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
 
-            Button("关闭会话") { coordinator.closeTranslationSession() }
+            Button(L10n.tr("关闭会话")) { coordinator.closeTranslationSession() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!sessionPresentation.status.isActive)
 
-            Button("重置会话") { coordinator.resetTranslationSession() }
+            Button(L10n.tr("重置会话")) { coordinator.resetTranslationSession() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!sessionPresentation.status.isActive || !coordinator.translationSession.canReset)
@@ -173,7 +173,7 @@ struct ResultPanelView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .help(coordinator.resultPanelPinned ? "取消置顶" : "置顶（浮在最前）")
+            .help(coordinator.resultPanelPinned ? L10n.tr("取消置顶") : L10n.tr("置顶（浮在最前）"))
         }
     }
 
@@ -195,7 +195,7 @@ struct ResultPanelView: View {
 
     private func copyButton(_ value: String, isOriginal: Bool) -> some View {
         let copied = isOriginal ? copiedOriginal : copiedTranslation
-        let label = isOriginal ? "原文" : "译文"
+        let label = isOriginal ? L10n.tr("原文") : L10n.tr("译文")
         return Button {
             copy(value)
             if isOriginal {
@@ -206,7 +206,7 @@ struct ResultPanelView: View {
                 scheduleReset(\.copiedTranslation)
             }
         } label: {
-            Label(copied ? "已复制\(label)" : "复制\(label)", systemImage: copied ? "checkmark" : "doc.on.doc")
+            Label(copied ? L10n.format("已复制%@", label) : L10n.format("复制%@", label), systemImage: copied ? "checkmark" : "doc.on.doc")
                 .font(.system(size: 11))
         }
         .buttonStyle(.bordered)

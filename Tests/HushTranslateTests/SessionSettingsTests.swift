@@ -81,20 +81,20 @@ final class SessionSettingsTests: XCTestCase {
             return AnyCancellable {}
         })
         let presentation = SessionPresentation(session: session, now: { now })
-        XCTAssertEqual(presentation.status.title, "已关闭")
+        XCTAssertEqual(presentation.status.title, L10n.tr("已关闭"))
         try session.start(configuration: .always)
-        XCTAssertEqual(presentation.status.title, "持续开启")
+        XCTAssertEqual(presentation.status.title, L10n.tr("持续开启"))
         XCTAssertEqual(presentation.status.badge, "∞")
         try session.start(configuration: .count(2))
         session.consumeValidSelection()
-        XCTAssertEqual(presentation.status.title, "剩余 1 次")
+        XCTAssertEqual(presentation.status.title, L10n.selectionsLeft(1))
         try session.start(configuration: .count(2))
         XCTAssertEqual(presentation.status.badge, "2")
         session.consumeValidSelection()
         session.consumeValidSelection()
         XCTAssertFalse(presentation.status.isActive)
         try session.start(configuration: .timer(minutes: 10))
-        XCTAssertEqual(presentation.status.title, "剩余 10 分钟")
+        XCTAssertEqual(presentation.status.title, L10n.minutesLeft("10"))
         now += 60
         presentation.refresh()
         XCTAssertEqual(presentation.status.badge, "9m")
@@ -103,7 +103,7 @@ final class SessionSettingsTests: XCTestCase {
         XCTAssertFalse(presentation.status.isActive)
         try session.start(configuration: .always)
         session.close()
-        XCTAssertEqual(presentation.status.title, "已关闭")
+        XCTAssertEqual(presentation.status.title, L10n.tr("已关闭"))
     }
 
     func testMinuteRoundingAndExpiredDisplay() async {

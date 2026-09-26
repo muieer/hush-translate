@@ -26,17 +26,17 @@ enum AppInstallation {
         let destination = URL(fileURLWithPath: "/Applications", isDirectory: true)
             .appendingPathComponent("HushTranslate.app", isDirectory: true)
         let alert = NSAlert()
-        alert.messageText = "将 HushTranslate 移到“应用程序”？"
-        alert.informativeText = "当前应用不在 Applications 目录中。移动后将从 /Applications 重新启动，并退出当前实例。"
-        alert.addButton(withTitle: "移动并重新启动")
-        alert.addButton(withTitle: "暂不移动")
+        alert.messageText = L10n.tr("将 HushTranslate 移到“应用程序”？")
+        alert.informativeText = L10n.tr("当前应用不在 Applications 目录中。移动后将从 /Applications 重新启动，并退出当前实例。")
+        alert.addButton(withTitle: L10n.tr("移动并重新启动"))
+        alert.addButton(withTitle: L10n.tr("暂不移动"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
 
         do {
             try move(from: source, to: destination)
         } catch {
-            showError("无法移动 HushTranslate", detail: "\(error.localizedDescription)\n\n请检查“应用程序”目录的写入权限，以及是否已有同名应用。也可以退出后通过 Finder 手动移动。当前实例将继续运行。")
+            showError(L10n.tr("无法移动 HushTranslate"), detail: L10n.format("%@\n\n请检查“应用程序”目录的写入权限，以及是否已有同名应用。也可以退出后通过 Finder 手动移动。当前实例将继续运行。", error.localizedDescription))
             return false
         }
 
@@ -48,7 +48,7 @@ enum AppInstallation {
             let application = try await NSWorkspace.shared.openApplication(at: destination, configuration: configuration)
             guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
                 throw NSError(domain: "HushTranslate.Installation", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "系统未能创建新的应用实例。"])
+                              userInfo: [NSLocalizedDescriptionKey: L10n.tr("系统未能创建新的应用实例。")])
             }
             NSApp.terminate(nil)
             return true
@@ -56,9 +56,9 @@ enum AppInstallation {
             let launchError = error.localizedDescription
             do {
                 try move(from: destination, to: source)
-                showError("无法重新启动 HushTranslate", detail: "\(launchError)\n\n应用已恢复到原位置，当前实例将继续运行。")
+                showError(L10n.tr("无法重新启动 HushTranslate"), detail: L10n.format("%@\n\n应用已恢复到原位置，当前实例将继续运行。", launchError))
             } catch {
-                showError("无法重新启动 HushTranslate", detail: "\(launchError)\n\n应用位于 \(destination.path)，恢复原位置失败：\(error.localizedDescription)\n请退出当前实例后，从“应用程序”重新打开。")
+                showError(L10n.tr("无法重新启动 HushTranslate"), detail: L10n.format("%@\n\n应用位于 %@，恢复原位置失败：%@\n请退出当前实例后，从“应用程序”重新打开。", launchError, destination.path, error.localizedDescription))
             }
             return false
         }
@@ -70,7 +70,7 @@ enum AppInstallation {
         alert.alertStyle = .warning
         alert.messageText = title
         alert.informativeText = detail
-        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: L10n.tr("好"))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }

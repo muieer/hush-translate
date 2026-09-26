@@ -11,7 +11,7 @@ final class OCRService {
 
         var errorDescription: String? {
             switch self {
-            case .noCGImage: return "图像无法转换为 CGImage"
+            case .noCGImage: return L10n.tr("图像无法转换为 CGImage")
             case .underlying(let e): return e.localizedDescription
             }
         }

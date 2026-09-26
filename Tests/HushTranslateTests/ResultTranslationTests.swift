@@ -98,7 +98,7 @@ final class ResultTranslationTests: XCTestCase {
         XCTAssertEqual(f.calls.count, 3)
         XCTAssertEqual(f.coordinator.lastResult?.translated, "latest")
         XCTAssertEqual(f.coordinator.resultProvider, .apple)
-        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
+        XCTAssertEqual(f.coordinator.resultProviderName, L10n.tr("Apple 翻译"))
         XCTAssertNil(f.coordinator.errorMessage)
     }
 
@@ -217,12 +217,12 @@ final class ResultTranslationTests: XCTestCase {
     func testFailureClearsLoadingAndLanguageChangeRetriesSameInput() async throws {
         let f = Fixture()
         f.start()
-        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
+        XCTAssertEqual(f.coordinator.resultProviderName, L10n.tr("Apple 翻译"))
         try await waitUntil { f.calls.count == 1 }
         f.calls[0].continuation.resume(throwing: TestError.oldFailure)
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertNotNil(f.coordinator.errorMessage)
-        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
+        XCTAssertEqual(f.coordinator.resultProviderName, L10n.tr("Apple 翻译"))
         XCTAssertNil(f.coordinator.statusMessage)
         f.coordinator.changeResultTargetLanguage("ja")
         XCTAssertNil(f.coordinator.errorMessage)

@@ -1,0 +1,5 @@
+"NSAppleEventsUsageDescription" = "HushTranslate uses macOS accessibility and screen recording access to translate selected text and screenshots.";
+"NSScreenCaptureDescription" = "HushTranslate uses Screen Recording to translate text in screenshots.";
+"NSDesktopFolderUsageDescription" = "HushTranslate needs Desktop access to save screenshots.";
+"NSDocumentsFolderUsageDescription" = "HushTranslate needs Documents access to save history.";
+"NSDownloadsFolderUsageDescription" = "HushTranslate needs Downloads access to save screenshots.";

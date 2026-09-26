@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "HushTranslate",
+    defaultLocalization: "zh-Hans",
     platforms: [
         .macOS("15.0")
     ],

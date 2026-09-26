@@ -1,5 +1,7 @@
 # 开发与验证
 
+英文版：[AGENTS.en.md](AGENTS.en.md)
+
 ## macOS 应用测试边界
 
 Codex 可以自行执行编译、构建、自动化测试和命令行验证。

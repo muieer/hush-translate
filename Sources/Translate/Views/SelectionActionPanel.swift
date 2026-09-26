@@ -19,7 +19,11 @@ final class SelectionActionPanel {
     func show(above selection: NSRect, action: @escaping () -> Void) {
         dismiss()
         self.action = action
-        let size = NSSize(width: 52, height: 28)
+        let title = L10n.tr("翻译")
+        let width = max(52, ceil((title as NSString).size(withAttributes: [
+            .font: NSFont.systemFont(ofSize: 14, weight: .medium)
+        ]).width) + 18)
+        let size = NSSize(width: width, height: 28)
         let window = SelectionActionWindow(contentRect: NSRect(origin: .zero, size: size),
                                           styleMask: [.borderless, .nonactivatingPanel],
                                           backing: .buffered, defer: false)
@@ -41,19 +45,19 @@ final class SelectionActionPanel {
         background.layer?.masksToBounds = true
         background.layer?.borderWidth = 0.5
         background.layer?.borderColor = NSColor.separatorColor.cgColor
-        let button = SelectionActionButton(title: "翻译", target: self, action: #selector(confirm))
+        let button = SelectionActionButton(title: title, target: self, action: #selector(confirm))
         button.frame = background.bounds
         button.isBordered = false
         button.font = .systemFont(ofSize: 14, weight: .medium)
         button.contentTintColor = .black
         let titleStyle = NSMutableParagraphStyle()
         titleStyle.alignment = .center
-        button.attributedTitle = NSAttributedString(string: "翻译", attributes: [
+        button.attributedTitle = NSAttributedString(string: title, attributes: [
             .font: NSFont.systemFont(ofSize: 14, weight: .medium),
             .foregroundColor: NSColor.black,
             .paragraphStyle: titleStyle
         ])
-        button.setAccessibilityLabel("翻译所选文本")
+        button.setAccessibilityLabel(L10n.tr("翻译所选文本"))
         background.addSubview(button)
         window.contentView = background
         let screen = NSScreen.screens.first { $0.frame.intersects(selection) } ?? NSScreen.main

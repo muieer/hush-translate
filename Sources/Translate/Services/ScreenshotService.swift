@@ -14,9 +14,9 @@ final class ScreenshotService {
 
         var errorDescription: String? {
             switch self {
-            case .noDisplay: return "找不到可用显示器"
-            case .noImage: return "截屏返回空图像"
-            case .permissionDenied: return "没有屏幕录制权限，请到「系统设置 → 隐私与安全性 → 屏幕录制」开启"
+            case .noDisplay: return L10n.tr("找不到可用显示器")
+            case .noImage: return L10n.tr("截屏返回空图像")
+            case .permissionDenied: return L10n.tr("没有屏幕录制权限，请到「系统设置 → 隐私与安全性 → 屏幕录制」开启")
             case .underlying(let e): return e.localizedDescription
             }
         }

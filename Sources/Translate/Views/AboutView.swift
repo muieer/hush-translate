@@ -2,14 +2,15 @@ import AppKit
 import SwiftUI
 
 struct AboutView: View {
+    @ObservedObject private var settings = AppCoordinator.shared.settings
     private let projectURL = URL(string: "https://github.com/muieer/hush-translate")!
 
     private var versionDescription: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        guard let version else { return "开发版本" }
-        if let build { return "版本：\(version)（\(build)）" }
-        return "版本：\(version)"
+        guard let version else { return L10n.tr("开发版本") }
+        if let build { return L10n.format("版本：%@（%@）", version, build) }
+        return L10n.format("版本：%@", version)
     }
 
     var body: some View {
@@ -27,7 +28,7 @@ struct AboutView: View {
                 .font(.system(size: 14))
                 .textSelection(.enabled)
 
-            Text("一款只在需要时出现的 macOS 大模型翻译工具。")
+            Text(L10n.tr("一款只在需要时出现的 macOS 大模型翻译工具。"))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {

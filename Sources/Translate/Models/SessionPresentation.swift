@@ -9,19 +9,19 @@ struct SessionStatus: Equatable {
     init(state: TranslationSessionState, now: Date) {
         switch state {
         case .off:
-            title = "已关闭"; badge = ""; isActive = false
+            title = L10n.tr("已关闭"); badge = ""; isActive = false
         case .always:
-            title = "持续开启"; badge = "∞"; isActive = true
+            title = L10n.tr("持续开启"); badge = "∞"; isActive = true
         case .count(let remaining):
-            title = "剩余 \(remaining) 次"; badge = "\(remaining)"; isActive = true
+            title = L10n.selectionsLeft(remaining); badge = "\(remaining)"; isActive = true
         case .timer(let deadline):
             let minutes = ceil(max(0, deadline.timeIntervalSince(now)) / 60)
             if minutes == 0 {
-                title = "已关闭"; badge = ""; isActive = false
+                title = L10n.tr("已关闭"); badge = ""; isActive = false
             } else {
                 // Formatting as a whole number avoids overflowing Int for large presets.
                 let text = String(format: "%.0f", minutes)
-                title = "剩余 \(text) 分钟"; badge = "\(text)m"; isActive = true
+                title = L10n.minutesLeft(text); badge = "\(text)m"; isActive = true
             }
         }
     }
