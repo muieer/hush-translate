@@ -49,6 +49,9 @@ jobs:
     needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
@@ -60,9 +63,27 @@ jobs:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: mv dist/HushTranslate.app.zip "dist/HushTranslate-${RELEASE_VERSION}.zip"
 
+      - name: Extract version release notes
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["RELEASE_VERSION"]
+          sections = re.split(r"(?=^## )", Path("CHANGELOG.md").read_text(), flags=re.M)
+          notes = next((section for section in sections if section.startswith(f"## {version}（")), None)
+          if notes is None:
+              raise SystemExit(f"CHANGELOG.md lacks release notes for {version}")
+          Path("dist/release-notes.md").write_text(notes.strip() + "\n")
+          PY
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: HushTranslate ${{ needs.validate.outputs.version }}
+          body_path: dist/release-notes.md
           files: dist/HushTranslate-${{ needs.validate.outputs.version }}.zip
           fail_on_unmatched_files: true
-          generate_release_notes: true
