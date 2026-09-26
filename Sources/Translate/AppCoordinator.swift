@@ -17,6 +17,7 @@ final class AppCoordinator: ObservableObject {
 
     @Published var settings: SettingsStore
 
+    @Published private(set) var resultProviderName: String?
     @Published var lastResult: TranslationResult?
     @Published var isWorking = false
     @Published var statusMessage: String?
@@ -31,7 +32,10 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - 服务
 
-    private let performTranslation: (TranslationRequest, TranslateConfig) async throws -> String
+    private let performTranslation: ((TranslationRequest, TranslateConfig) async throws -> String)?
+    private let recognizeScreenshot: ((Data) async throws -> String)?
+    let appleTranslation: AppleTranslationService
+    private let llmTranslation = TranslateService()
     let hotKey     = HotKeyService()
     let selection  = SelectionMonitor()
     let screenshot = ScreenshotService()
@@ -49,22 +53,24 @@ final class AppCoordinator: ObservableObject {
     private var resultPanel: FloatingPanelController<AnyView>?
     private var workingTask: Task<Void, Never>?
     private var lastRequest: TranslationRequest?
+    private var requestID = UUID()
     /// 截图选区控制器：必须持有，否则 onResult 闭包里的 weak self 在选区完成前
     /// 就随 controller 释放，导致 overlay 窗口 orderOut 不执行、画面卡在灰色选区态。
     private var screenshotOverlay: ScreenshotOverlayController?
 
     /// Inject the translation operation without registering shortcuts or showing windows.
     init(settings: SettingsStore,
-         translate: @escaping (TranslationRequest, TranslateConfig) async throws -> String) {
+         recognizeScreenshot: ((Data) async throws -> String)? = nil,
+         translate: ((TranslationRequest, TranslateConfig) async throws -> String)? = nil,
+         appleTranslation: AppleTranslationService? = nil) {
         self.settings = settings
         self.performTranslation = translate
+        self.recognizeScreenshot = recognizeScreenshot
+        self.appleTranslation = appleTranslation ?? AppleTranslationService()
     }
 
     private convenience init() {
-        let service = TranslateService()
-        self.init(settings: SettingsStore()) { request, config in
-            try await service.translate(request, config: config)
-        }
+        self.init(settings: SettingsStore())
         _ = selectionTranslation
         hotKey.onSession = { [weak self] in self?.startDefaultTranslationSession() }
         hotKey.onScreenshot = { [weak self] in self?.translateScreenshotNow() }
@@ -114,6 +120,8 @@ final class AppCoordinator: ObservableObject {
         guard ensurePermissionsForScreenshot() else { return }
         // 不提前显示结果面板：先全屏截图 + 弹选区框，
         // 截图/选区失败时不要留一个空面板。
+        let captureID = beginRequest()
+        errorMessage = nil
         statusMessage = "请框选截图区域…"
         isWorking = true
 
@@ -122,7 +130,7 @@ final class AppCoordinator: ObservableObject {
         overlay.start(
             screenshot: screenshot,
             onResult: { [weak self] image in
-                guard let self = self else { return }
+                guard let self = self, self.requestID == captureID else { return }
                 // 选区流程结束，释放 overlay（其内部已 orderOut 窗口）
                 self.screenshotOverlay = nil
                 guard let image = image else {
@@ -134,7 +142,7 @@ final class AppCoordinator: ObservableObject {
                 self.processScreenshot(image)
             },
             onError: { [weak self] error in
-                guard let self = self else { return }
+                guard let self = self, self.requestID == captureID else { return }
                 self.screenshotOverlay = nil
                 self.isWorking = false
                 self.statusMessage = nil
@@ -180,7 +188,7 @@ final class AppCoordinator: ObservableObject {
         let win = NSWindow(contentViewController: host)
         win.title = "HushTranslate 设置"
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        win.setContentSize(NSSize(width: 600, height: 480))
+        win.setContentSize(NSSize(width: 600, height: 550))
         win.center()
         win.isReleasedWhenClosed = false
         // 在焦点变化之前标记关窗，让输入框丢弃尚未确认的草稿。
@@ -273,63 +281,63 @@ final class AppCoordinator: ObservableObject {
     // MARK: - 流程
 
     private func processScreenshot(_ image: NSImage) {
-        isWorking = true
-        statusMessage = "识别图中文字…"
-        showResultPanel()
-
-        Task { [weak self] in
-            guard let self = self else { return }
-
-            // 按设置走 OCR 策略
-            var extractedText = ""
-            let mode = self.settings.ocrMode
-            do {
-                switch mode {
-                case .local:
-                    extractedText = try await self.ocr.recognizeText(in: image)
-                case .remote:
-                    self.statusMessage = "发送到多模态模型识别中…"
-                    return await self.runTranslateWithImage(image)
-                case .both:
-                    do {
-                        extractedText = try await self.ocr.recognizeText(in: image)
-                        if extractedText.isEmpty {
-                            self.statusMessage = "本地 OCR 未识别到文字，发送图片给大模型…"
-                            return await self.runTranslateWithImage(image)
-                        }
-                    } catch {
-                        Log.ocr.error("local OCR failed: \(error.localizedDescription, privacy: .public)")
-                        return await self.runTranslateWithImage(image)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.isWorking = false
-                    self.statusMessage = nil
-                    self.showError("OCR 失败：\(error.localizedDescription)", keepPosition: true)
-                }
-                return
-            }
-
-            if extractedText.isEmpty {
-                await MainActor.run {
-                    self.isWorking = false
-                    self.statusMessage = nil
-                    self.showError("OCR 未识别到任何文字。", keepPosition: true)
-                }
-                return
-            }
-
-            await MainActor.run {
-                self.statusMessage = "翻译中…"
-            }
-            self.runTranslate(text: extractedText, imageData: Self.pngData(from: image), source: .screenshot, presentWindow: false)
+        guard let data = Self.pngData(from: image) else {
+            showError("截图无法转换为图片，请重新截图。")
+            return
         }
+        runTranslate(text: "", imageData: data, source: .screenshot)
     }
 
-    private func runTranslateWithImage(_ image: NSImage) async {
-        let data = Self.pngData(from: image)
-        runTranslate(text: "", imageData: data, source: .screenshot, presentWindow: false)
+    private func beginRequest() -> UUID {
+        workingTask?.cancel()
+        appleTranslation.cancel()
+        requestID = UUID()
+        return requestID
+    }
+
+    private func recognize(_ data: Data) async throws -> String {
+        if let recognizeScreenshot { return try await recognizeScreenshot(data) }
+        guard let image = NSImage(data: data) else { throw OCRService.OCRError.noCGImage }
+        return try await ocr.recognizeText(in: image)
+    }
+
+    private enum InputError: LocalizedError {
+        case emptyOCR
+        var errorDescription: String? { "OCR 未识别到任何文字，请重新框选包含清晰文字的区域。" }
+    }
+
+    private func prepare(_ input: TranslationRequest, config: TranslateConfig) async throws -> TranslationRequest {
+        var request = input
+        if request.source == .screenshot, let image = request.imageData,
+           request.text.isEmpty, config.ocrMode != .remote {
+            do {
+                statusMessage = "识别图中文字…"
+                request.text = try await recognize(image)
+                try Task.checkCancellation()
+                if request.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    throw InputError.emptyOCR
+                }
+            } catch {
+                try Task.checkCancellation()
+                guard config.ocrMode == .both else { throw error }
+                request.text = ""
+            }
+        }
+        // Apple accepts text only. Preserve the original image separately for later retranslations.
+        if config.usesApple { request.imageData = nil }
+        return request
+    }
+
+    private func translate(_ request: TranslationRequest, config: TranslateConfig) async throws -> String {
+        if let performTranslation { return try await performTranslation(request, config) }
+        if config.usesApple {
+            return try await appleTranslation.translate(request) { [weak self] in
+                // The system download consent is a sheet on this window. A selection result
+                // normally appears without focus, so make it key before presenting the sheet.
+                if self?.resultPanel?.isVisible() == true { self?.resultPanel?.activate() }
+            }
+        }
+        return try await llmTranslation.translate(request, config: config)
     }
 
     func changeResultSourceLanguage(_ code: String) {
@@ -351,57 +359,45 @@ final class AppCoordinator: ObservableObject {
     }
 
     func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true) {
-        // cancel 旧任务
-        workingTask?.cancel()
-
+        let id = beginRequest()
+        let config = settings.snapshot()
+        let input = TranslationRequest(text: text, sourceLang: config.sourceLanguage,
+            targetLang: config.targetLanguage, imageData: imageData, source: source)
+        resultProviderName = config.displayName
+        lastResult = nil
+        lastRequest = input
         isWorking = true
         errorMessage = nil
         statusMessage = "翻译中…"
         if presentWindow { showResultPanel() } else { refreshResultPanel() }
 
-        let req = TranslationRequest(
-            text: text,
-            sourceLang: settings.sourceLanguage,
-            targetLang: settings.targetLanguage,
-            imageData: imageData,
-            source: source
-        )
-
-        lastRequest = req
-        let config = settings.snapshot()
-
         workingTask = Task { [weak self] in
-            guard let self = self, !Task.isCancelled else { return }
+            guard let self, !Task.isCancelled, self.requestID == id else { return }
             let start = Date()
             do {
-                let translated = try await self.performTranslation(req, config)
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    guard !Task.isCancelled else { return }
-                    self.isWorking = false
-                    self.statusMessage = nil
-                    let result = TranslationResult(
-                        original: text,
-                        translated: translated,
-                        sourceLang: req.sourceLang,
-                        targetLang: req.targetLang,
-                        model: config.model,
-                        latency: Date().timeIntervalSince(start),
-                        timestamp: Date(),
-                        source: source
-                    )
-                    self.lastResult = result
-                    self.refreshResultPanel()
-                }
+                let request = try await self.prepare(input, config: config)
+                try Task.checkCancellation()
+                guard self.requestID == id else { return }
+                // Cache OCR text, retaining the image when moving between providers.
+                self.lastRequest?.text = request.text
+                self.statusMessage = "翻译中…"
+                let translated = try await self.translate(request, config: config)
+                try Task.checkCancellation()
+                guard self.requestID == id else { return }
+                self.isWorking = false
+                self.statusMessage = nil
+                self.lastResult = TranslationResult(
+                    original: request.text, translated: translated,
+                    sourceLang: request.sourceLang, targetLang: request.targetLang,
+                    providerName: config.displayName, latency: Date().timeIntervalSince(start),
+                    timestamp: Date(), source: source)
+                self.refreshResultPanel()
             } catch {
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    guard !Task.isCancelled else { return }
-                    self.isWorking = false
-                    self.statusMessage = nil
-                    self.errorMessage = error.localizedDescription
-                    self.refreshResultPanel()
-                }
+                guard !Task.isCancelled, self.requestID == id else { return }
+                self.isWorking = false
+                self.statusMessage = nil
+                self.errorMessage = error is CancellationError ? "翻译已取消，请重新选择文字或切换语言后重试。" : error.localizedDescription
+                self.refreshResultPanel()
             }
         }
     }

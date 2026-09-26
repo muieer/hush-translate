@@ -2,7 +2,7 @@
   <img src="design/icons/app-icon.png" width="160" alt="HushTranslate app icon">
 </p>
 <h1 align="center">HushTranslate</h1>
-<p align="center">An LLM translation app for macOS that appears only when you need it.</p>
+<p align="center">A translation app for macOS that appears only when you need it.</p>
 <p align="center"><a href="README.md">中文</a> · English</p>
 
 ## About
@@ -19,7 +19,7 @@ For example, enable translation for the next 3 selections, work through a few di
 
 - **Translation sessions**: continuous, next N selections, or next N minutes, with configurable counts and durations.
 - **Screenshot translation**: select a screen region and translate text recognized with local OCR by default, or use a multimodal model that accepts images.
-- **Cloud and local models**: connect to model services compatible with the OpenAI Chat Completions API.
+- **Translation providers**: use built-in Apple Translation by default, or save and switch between multiple cloud or local OpenAI-compatible services.
 - **Lightweight results**: read translations in a floating panel with less app switching.
 - **Menu bar and shortcuts**: check session status, start or close sessions, and customize keyboard shortcuts.
 - **Clipboard translation**: translate text you have already copied.
@@ -33,7 +33,7 @@ HushTranslate is distributed free of charge for Apple Silicon Macs running macOS
 3. Move `HushTranslate.app` to `/Applications` (recommended, but optional).
 4. Double-click the app. macOS Gatekeeper may block the first launch. If this happens, open System Settings → Privacy & Security, find the HushTranslate message, click Open Anyway, and follow the confirmation prompts.
 5. After launch, follow the system prompts to grant Accessibility, Screen Recording, and any other permissions needed for the features you use. The app runs in the menu bar.
-6. Configure your model service's API Key in the app settings. Obtain the key from your provider; API usage is billed to your own provider account. For local models, follow the local service's configuration requirements.
+6. Apple Translation is selected by default and requires no endpoint or API key. The app uses the low-latency strategy and reuses installed traditional translation language resources first; if none are available, follow the system prompt to download language resources. To use an LLM, add an OpenAI-compatible service in Settings → General; obtain an API key from your provider, which bills usage to your own account.
 
 See “First use” below and the [user guide](USER_GUIDE.md) (Chinese) for configuration details.
 
@@ -60,8 +60,10 @@ For development, use `./scripts/make-app.sh debug`, which requires a valid Apple
 
 ### First use
 
-1. In Settings → General (「设置 → 通用」), enter your service's `Base URL`, `API Key`, and `Model`, then choose a target language. Use the API base address, such as `http://localhost:1234/v1`, without `/chat/completions`. For local models, start the model server first.
+1. In Settings → General (「设置 → 通用」), choose a translation provider and target language. Apple Translation needs no endpoint configuration. For an LLM, click Add Service (「添加服务」), enter a service name, Base URL, API Key, and model name, then click Save (「保存」). Use a base address such as `http://localhost:1234/v1`, without `/chat/completions`. Start local model servers before using them.
 2. In Settings → Shortcuts (「设置 → 快捷键」), grant the permissions you need: Accessibility for selected-text translation and Screen Recording for screenshot translation.
 3. Choose “Enable 3 selections” (「开启 3 次」) from the menu bar, then select text in another app and click the “翻译” (Translate) button above the selection. To change the default mode, count, or duration, open Settings → Translation Session (「设置 → 翻译会话」), then use the shortcut to start a session.
 
 Screenshot translation can be started directly from the menu bar without an active translation session.
+
+Save multiple LLM services and switch between them with the translation provider menu. Service edits require an explicit Save; switching providers preserves drafts within the settings window, and closing settings discards unsaved edits. Apple Translation cannot be deleted. Upgrades select Apple by default and preserve the old endpoint as “原有服务” (Previous Service). Selected text, clipboard, and screenshots all use the current provider. Apple screenshot translation uses local Vision OCR.

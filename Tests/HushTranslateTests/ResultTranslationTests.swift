@@ -14,12 +14,12 @@ final class ResultTranslationTests: XCTestCase {
         let defaults: UserDefaults
         let settings: SettingsStore
         var calls: [Call] = []
-        lazy var coordinator = AppCoordinator(settings: settings) { [unowned self] request, config in
+        lazy var coordinator = AppCoordinator(settings: settings, translate: { [unowned self] request, config in
             // Deliberately ignore cancellation to exercise late responses from the service.
             try await withCheckedThrowingContinuation { continuation in
                 calls.append(Call(request: request, config: config, continuation: continuation))
             }
-        }
+        })
 
         init() {
             defaults = UserDefaults(suiteName: suite)!
@@ -97,6 +97,9 @@ final class ResultTranslationTests: XCTestCase {
     func testScreenshotCanRetranslateWithoutOriginalText() async throws {
         let f = Fixture()
         let image = Data([1, 2, 3])
+        let service = LLMService(name: "Vision", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "vision")
+        XCTAssertTrue(f.settings.saveService(service))
+        f.settings.ocrMode = .remote
         f.start(text: "", image: image, source: .screenshot)
         try await waitUntil { f.calls.count == 1 }
         f.calls[0].continuation.resume(returning: "image result")
@@ -134,19 +137,21 @@ final class ResultTranslationTests: XCTestCase {
 
     func testConfigurationCapturedBeforeTaskStartsAndSettingsEditsDoNotRetranslate() async throws {
         let f = Fixture()
-        f.settings.model = "request-model"
+        var service = LLMService(name: "Test", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "request-model")
+        XCTAssertTrue(f.settings.saveService(service))
         f.start()
         f.settings.sourceLanguage = "en"
         f.settings.targetLanguage = "ja"
-        f.settings.model = "later-model"
+        service.model = "later-model"
+        XCTAssertTrue(f.settings.saveService(service))
         try await waitUntil { f.calls.count == 1 }
-        XCTAssertEqual(f.calls[0].config.model, "request-model")
+        XCTAssertEqual(f.calls[0].config.service?.model, "request-model")
         XCTAssertEqual(f.calls[0].config.sourceLanguage, "auto")
         XCTAssertEqual(f.calls[0].config.targetLanguage, "zh-Hans")
         f.calls[0].continuation.resume(returning: "result")
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertEqual(f.calls.count, 1)
-        XCTAssertEqual(f.coordinator.lastResult?.model, "request-model")
+        XCTAssertEqual(f.coordinator.lastResult?.providerName, "Test - request-model")
         XCTAssertEqual(f.coordinator.lastResult?.sourceLang, "auto")
         XCTAssertEqual(f.coordinator.lastResult?.targetLang, "zh-Hans")
     }
@@ -154,10 +159,12 @@ final class ResultTranslationTests: XCTestCase {
     func testFailureClearsLoadingAndLanguageChangeRetriesSameInput() async throws {
         let f = Fixture()
         f.start()
+        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
         try await waitUntil { f.calls.count == 1 }
         f.calls[0].continuation.resume(throwing: TestError.oldFailure)
         try await waitUntil { !f.coordinator.isWorking }
         XCTAssertNotNil(f.coordinator.errorMessage)
+        XCTAssertEqual(f.coordinator.resultProviderName, "Apple 翻译")
         XCTAssertNil(f.coordinator.statusMessage)
         f.coordinator.changeResultTargetLanguage("ja")
         XCTAssertNil(f.coordinator.errorMessage)
