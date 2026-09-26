@@ -51,7 +51,7 @@ struct PreferencesView: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(width: 540, height: 380)
+            .frame(width: 540, height: 340)
         }
         .onAppear { coordinator.refreshPermissions() }
         .onChange(of: focusedField) { oldField, newField in
@@ -358,21 +358,19 @@ struct PreferencesView: View {
 
     private func sessionSettingsRow(_ title: String, field: Field, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Text(title)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 8) {
-                    input(for: field)
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.leading)
-                        .frame(width: 100)
-                    Spacer(minLength: 8)
-                    Text(unit)
-                        .foregroundColor(.secondary)
-                        .frame(width: 44, alignment: .trailing)
-                    saveStatus(for: field)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                input(for: field)
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .frame(width: 80, height: 28)
+                    .accessibilityLabel(title)
+                Text(unit)
+                    .foregroundColor(.secondary)
+                    .frame(width: 28, alignment: .leading)
+                saveStatus(for: field)
             }
             if case .invalid(let message) = statuses[field] {
                 Text(message)
@@ -462,6 +460,8 @@ struct PreferencesView: View {
 
 /// No focus/submit autosave: a service is committed atomically by the explicit Save button.
 private struct LLMServiceEditor: View {
+    private let inputWidth: CGFloat = 340
+
     @Binding var draft: LLMService
     let isNew: Bool
     let onSave: () -> Void
@@ -472,17 +472,14 @@ private struct LLMServiceEditor: View {
 
     var body: some View {
         field("服务名称", keyPath: \.name, errorKey: .name, placeholder: "例如：火山云")
-        field("接口地址（Base URL）", keyPath: \.apiBaseURL, errorKey: .apiBaseURL,
+        field("接口地址", keyPath: \.apiBaseURL, errorKey: .apiBaseURL,
               placeholder: "https://api.example.com/v1")
-        VStack(alignment: .leading, spacing: 4) {
-            LabeledContent("API Key") {
-                SecureField("服务密钥", text: $draft.apiKey).textFieldStyle(.roundedBorder)
-            }
-            error(for: .apiKey)
+            .help("填写 API 基础地址，不含 /chat/completions。支持云端服务和本地 OpenAI 兼容服务。")
+        editorRow("API Key", errorKey: .apiKey) {
+            SecureField("API Key", text: $draft.apiKey,
+                        prompt: prompt("请输入 API Key"))
         }
         field("模型名称", keyPath: \.model, errorKey: .model, placeholder: "接口使用的模型名称")
-        Text("填写 API 基础地址，不含 /chat/completions。支持云端服务和本地 OpenAI 兼容服务。")
-            .font(.caption).foregroundColor(.secondary)
         HStack {
             Button("保存") {
                 attemptedSave = true
@@ -509,13 +506,31 @@ private struct LLMServiceEditor: View {
 
     private func field(_ title: String, keyPath: WritableKeyPath<LLMService, String>,
                        errorKey: LLMService.Field, placeholder: String) -> some View {
+        editorRow(title, errorKey: errorKey) {
+            TextField(title, text: $draft[dynamicMember: keyPath], prompt: prompt(placeholder))
+        }
+    }
+
+    private func prompt(_ placeholder: String) -> Text {
+        Text(isNew ? placeholder : "").foregroundColor(.secondary)
+    }
+
+    private func editorRow<Content: View>(_ title: String, errorKey: LLMService.Field,
+                                          @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(title) {
-                TextField(placeholder, text: $draft[dynamicMember: keyPath])
+            HStack(spacing: 16) {
+                Text(title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                content()
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .frame(width: inputWidth, height: 28)
+                    .accessibilityLabel(title)
             }
             error(for: errorKey)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
