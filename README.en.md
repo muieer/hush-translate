@@ -26,7 +26,7 @@ For example, enable translation for the next 3 selections, work through a few di
 
 ## Installation and first launch
 
-HushTranslate is distributed free of charge for Apple Silicon Macs running macOS 14 or later. Release builds use ad-hoc signing, without Apple Developer ID signing or Apple Notarization.
+HushTranslate is distributed free of charge for Apple Silicon Macs running macOS 15 or later. Release builds use ad-hoc signing, without Apple Developer ID signing or Apple Notarization.
 
 1. Download `HushTranslate-x.x.x.zip` from [GitHub Releases](https://github.com/muieer/hush-translate/releases).
 2. Extract the ZIP file.
@@ -41,7 +41,7 @@ See “First use” below and the [user guide](USER_GUIDE.md) (Chinese) for conf
 
 ### Requirements
 
-- An Apple Silicon Mac running macOS 14 or later.
+- An Apple Silicon Mac running macOS 15 or later.
 - A full Xcode installation with first-launch component setup completed.
 - Access to GitHub to fetch dependencies on the first build.
 

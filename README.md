@@ -26,7 +26,7 @@ HushTranslate 面向以自主阅读为主、偶尔需要翻译的用户，提供
 
 ## 安装与首次运行
 
-HushTranslate 免费分发，适用于 Apple Silicon Mac，要求 macOS 14 或更高版本。发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
+HushTranslate 免费分发，适用于 Apple Silicon Mac，要求 macOS 15 或更高版本。发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
 
 1. 从 [GitHub Releases](https://github.com/muieer/hush-translate/releases) 下载 `HushTranslate-x.x.x.zip`。
 2. 解压 ZIP 文件。
@@ -41,7 +41,7 @@ HushTranslate 免费分发，适用于 Apple Silicon Mac，要求 macOS 14 或�
 
 ### 环境要求
 
-- Apple Silicon Mac，macOS 14 或更高版本。
+- Apple Silicon Mac，macOS 15 或更高版本。
 - 完整安装的 Xcode，并已完成首次启动时的组件安装。
 - 首次构建时能够连接 GitHub，以获取依赖。
 

@@ -23,14 +23,23 @@ final class ScreenshotService {
     }
 
     /// 截取主显示器全屏，返回 NSImage（已包含 retina 2x 像素）。
-    /// 优先 ScreenCaptureKit（macOS 14+），失败回退到 CGWindowListCreateImage。
+    /// 优先用 SCStream 截图，失败时使用 SCScreenshotManager 重试。
     func captureFullScreen() async throws -> NSImage {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             // 优先抓 NSScreen.main 对应的显示器，避免多屏时抓错屏导致画面放大错位
             let mainDisplayID = (NSScreen.main?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
             guard let display = (mainDisplayID.flatMap { id in content.displays.first(where: { $0.displayID == id }) } ?? content.displays.first) else { throw CaptureError.noDisplay }
-            return try await captureWithSCStream(display: display)
+            do {
+                return try await captureWithSCStream(display: display)
+            } catch {
+                let nsError = error as NSError
+                if nsError.domain == "com.apple.screencapture" || nsError.code == -3801 || nsError.code == -3808 {
+                    throw CaptureError.permissionDenied
+                }
+                Log.screen.error("SCStream failed (\(nsError.code)), retrying with SCScreenshotManager: \(nsError.localizedDescription, privacy: .public)")
+                return try await captureWithScreenshotManager(display: display)
+            }
         } catch let error as CaptureError {
             throw error
         } catch {
@@ -38,12 +47,11 @@ final class ScreenshotService {
             if nsError.domain == "com.apple.screencapture" || nsError.code == -3801 || nsError.code == -3808 {
                 throw CaptureError.permissionDenied
             }
-            Log.screen.error("ScreenCaptureKit failed (\(nsError.code)), falling back to CGWindowListCreateImage: \(nsError.localizedDescription, privacy: .public)")
-            return try captureWithCGWindowList()
+            throw CaptureError.underlying(error)
         }
     }
 
-    /// SCStream 取一帧（macOS 12.3+ 即可用）
+    /// 使用 SCStream 取一帧。
     private func captureWithSCStream(display: SCDisplay) async throws -> NSImage {
         let filter = SCContentFilter(display: display, excludingWindows: [])
         let cfg = SCStreamConfiguration()
@@ -69,16 +77,14 @@ final class ScreenshotService {
         return NSImage(cgImage: cgImage, size: size)
     }
 
-    private func captureWithCGWindowList() throws -> NSImage {
-        guard let cgImage = CGWindowListCreateImage(
-            .null,
-            .optionOnScreenOnly,
-            kCGNullWindowID,
-            [.bestResolution, .boundsIgnoreFraming]
-        ) else {
-            throw CaptureError.permissionDenied
-        }
-        let size = NSSize(width: cgImage.width, height: cgImage.height)
+    private func captureWithScreenshotManager(display: SCDisplay) async throws -> NSImage {
+        let filter = SCContentFilter(display: display, excludingWindows: [])
+        let cfg = SCStreamConfiguration()
+        cfg.width = display.width * 2
+        cfg.height = display.height * 2
+        cfg.scalesToFit = false
+        let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg)
+        let size = NSSize(width: display.width, height: display.height)
         return NSImage(cgImage: cgImage, size: size)
     }
 }
