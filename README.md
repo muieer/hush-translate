@@ -15,25 +15,27 @@ HushTranslate 面向以自主阅读为主、偶尔需要翻译的用户，提供
 
 ![HushTranslate 操作演示](image/introduction.gif)
 
+版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 功能特征
 
 - **划词翻译会话**：支持持续开启、开启 N 次、开启 N 分钟，次数与时长可配置。
 - **截图翻译**：框选屏幕区域，默认使用本地 OCR 识别文字后翻译；也可使用支持图片输入的多模态模型。
 - **可选翻译来源**：默认使用无需接口配置的 Apple 翻译，也可新增和切换多组云端或本地 OpenAI 兼容服务。
-- **轻量结果面板**：在浮动窗口中查看译文，减少应用切换。
+- **轻量结果面板**：在浮动窗口中查看译文，并直接切换翻译来源或语言，重新翻译同一输入，无须重新划词或消耗会话次数。
 - **菜单栏与快捷键**：查看会话状态、开启或关闭会话，并自定义快捷键。
 - **剪贴板翻译**：直接翻译已复制的文字。
 
 ## 安装与首次运行
 
-HushTranslate 免费分发，适用于 Apple Silicon Mac，要求 macOS 15 或更高版本。发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
+HushTranslate 免费分发，适用于 Apple Silicon Mac。2.0.0 起要求 macOS 15 或更高版本，macOS 14 不再受支持。发布版使用 ad-hoc 签名，未使用 Apple Developer ID 签名，也未经过 Apple 公证（Notarization）。
 
 1. 从 [GitHub Releases](https://github.com/muieer/hush-translate/releases) 下载 `HushTranslate-x.x.x.zip`。
 2. 解压 ZIP 文件。
 3. 建议将 `HushTranslate.app` 移至 `/Applications`（应用程序）文件夹，也可放在其他位置。
 4. 双击应用。首次运行时，macOS Gatekeeper 可能阻止打开；此时前往「系统设置 → 隐私与安全性」，找到 HushTranslate 的提示，点击「仍要打开」，并按系统提示确认。
 5. 启动后，根据系统提示和所需功能授予「辅助功能」「屏幕录制」等权限。应用常驻菜单栏。
-6. 默认使用 Apple 翻译，无需填写接口或密钥。应用采用低延时策略，优先使用设备上已有的传统翻译语言资源；若没有可用模型，按系统提示下载语言资源。若需要 LLM，可在「设置 → 通用」添加 OpenAI 兼容服务；API Key 由用户自行获取，API 费用由自己的服务商账号承担。
+6. 默认使用 Apple 翻译，无需填写接口或密钥。macOS 26.4 及以上显式选择低延时策略，较早版本使用系统默认策略；需要语言资源时，按系统提示下载。若需要 LLM，可在「设置 → 通用」添加 OpenAI 兼容服务；API Key 由用户自行获取，API 费用由自己的服务商账号承担。
 
 具体配置见下方「首次使用」和 [使用说明](USER_GUIDE.md)。
 
@@ -66,4 +68,4 @@ open build/HushTranslate.app --args --show-settings
 
 截图翻译可直接从菜单栏启动，无须开启划词翻译会话。
 
-可保存多组 LLM 服务，并在「翻译来源」中切换。修改服务后需点击「保存」；切换来源不会保存草稿，关闭设置后丢弃未保存的修改。Apple 翻译不能删除。升级后默认选择 Apple，旧接口保留为「原有服务」，可随时切回。划词、剪贴板和截图统一使用当前来源；Apple 截图使用本地 Vision OCR。
+可保存多组 LLM 服务，并在设置或结果窗口的「翻译来源」中切换。修改服务后需点击「保存」；在设置窗口内切换来源会保留草稿，关闭设置后丢弃未保存的修改。Apple 翻译不能删除。升级后默认选择 Apple，旧接口保留为「原有服务」，可随时切回。划词、剪贴板和截图统一使用当前来源；Apple 截图使用本地 Vision OCR。选择 LLM 时，截图仍会发送到所选服务，包括本地 Vision 模式。

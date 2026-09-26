@@ -128,7 +128,7 @@ struct PreferencesView: View {
                         Text(mode.label).tag(mode)
                     }
                 }
-                Text("按快捷键会启动新的默认会话，再次按下会重新开始。开启后，在其他应用中划词即可翻译；关闭会话请使用菜单栏。")
+                Text("按快捷键会启动新的默认会话，再次按下会重新开始。开启后，在其他应用中划词并点击「翻译」按钮即可翻译；关闭会话请使用菜单栏。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -255,9 +255,9 @@ struct PreferencesView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    bulletRow("本地 Vision：免费、离线、Mac 原生。识别不到时降级到远程（仅「本地优先」模式）。")
+                    bulletRow("本地 Vision：先在 Mac 上识别文字；选择 OpenAI 兼容服务时，截图仍会发送给模型。识别失败时仅「本地优先」模式继续请求。")
                     bulletRow("多模态大模型：直接把图片发给模型（需支持 vision 的模型，如 GPT-4o、Qwen2-VL、Qwen2.5-VL、Llama 3.2 Vision 等）。")
-                    bulletRow("本地优先：先本地 OCR 拿文字，识别为空/失败再发图片给大模型。推荐使用。")
+                    bulletRow("本地优先：先本地 OCR 拿文字，识别为空或失败时由大模型识别；截图请求仍包含图片。")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
