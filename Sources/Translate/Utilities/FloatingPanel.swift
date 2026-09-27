@@ -3,6 +3,8 @@ import SwiftUI
 
 /// 自动展示不夺取焦点；用户点击后按普通应用窗口激活。
 private final class ResultPanelWindow: NSWindow {
+    var onUserActivation: (() -> Void)?
+
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown,
            event.keyCode == 53,
@@ -11,6 +13,7 @@ private final class ResultPanelWindow: NSWindow {
             return
         }
         if event.type == .leftMouseDown {
+            onUserActivation?()
             NSApp.activate(ignoringOtherApps: true)
             makeKeyAndOrderFront(nil)
         }
@@ -23,11 +26,24 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
     private var panel: NSWindow?
     private var hosting: NSHostingController<Content>?
     private(set) var pinned = false
+    private var automaticallyPresented = false
+    private var outsideClickMonitor: Any?
+    private var localClickMonitor: Any?
+    private var applicationActivationObserver: NSObjectProtocol?
+    private var presentationApplicationPID: pid_t?
     private let autosaveName: String?
 
     init(autosaveName: String? = "TranslationResultWindow") {
         self.autosaveName = autosaveName
         super.init()
+    }
+
+    deinit {
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+        if let applicationActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(applicationActivationObserver)
+        }
     }
 
     /// 只有明确的新请求才展示窗口；后台刷新不会撤销关闭或最小化。
@@ -53,6 +69,7 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
             window.contentMinSize = NSSize(width: 440, height: 220)
             window.isReleasedWhenClosed = false
             window.delegate = self
+            window.onUserActivation = { [weak self] in self?.finishAutomaticPresentation() }
             if let autosaveName { window.setFrameAutosaveName(autosaveName) }
             panel = window
 
@@ -92,7 +109,13 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
         if !window.styleMask.contains(.fullScreen) {
             window.setFrame(retainedFrame, display: true)
         }
-        window.level = self.pinned ? .floating : .normal
+        if bringToFront {
+            automaticallyPresented = true
+            presentationApplicationPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            monitorOutsideClicks()
+            monitorApplicationActivation()
+        }
+        updateWindowLevel()
         if bringToFront {
             if window.isMiniaturized { window.deminiaturize(nil) }
             if !window.styleMask.contains(.fullScreen) {
@@ -106,6 +129,7 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
 
     func activate() {
         guard let panel else { return }
+        finishAutomaticPresentation()
         if panel.isMiniaturized { panel.deminiaturize(nil) }
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
@@ -113,7 +137,118 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
 
     func setPinned(_ on: Bool) {
         pinned = on
-        panel?.level = on ? .floating : .normal
+        updateWindowLevel()
+    }
+
+    private func finishAutomaticPresentation() {
+        automaticallyPresented = false
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        outsideClickMonitor = nil
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+        localClickMonitor = nil
+        if let applicationActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(applicationActivationObserver)
+        }
+        applicationActivationObserver = nil
+        presentationApplicationPID = nil
+        updateWindowLevel()
+    }
+
+    private func monitorApplicationActivation() {
+        guard applicationActivationObserver == nil else { return }
+        applicationActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self,
+                      let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      application.processIdentifier != self.presentationApplicationPID else { return }
+                // Clicking the result may activate this app before its mouse event arrives.
+                // Do not place it behind another one of our windows in that interval.
+                if application.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+                    self.finishAutomaticPresentation()
+                    return
+                }
+                self.handleOutsideClick(relativeTo: self.normalWindowNumber(
+                    belongingTo: application.processIdentifier))
+            }
+        }
+    }
+
+    private func monitorOutsideClicks() {
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        if outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] event in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.handleOutsideClick(relativeTo: event.cgEvent.flatMap {
+                        Self.clickedNormalWindowNumber(event: $0, windows: self.visibleWindowInfo())
+                    })
+                }
+            }
+        }
+        if localClickMonitor == nil {
+            localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+                MainActor.assumeIsolated {
+                    if let self, event.window !== self.panel {
+                        self.handleOutsideClick(relativeTo: event.window?.level == .normal
+                                                ? event.window?.windowNumber : nil)
+                    }
+                }
+                return event
+            }
+        }
+    }
+
+    private func visibleWindowInfo() -> [[String: Any]] {
+        // Window numbers, layers and bounds are available without reading window contents.
+        CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                  kCGNullWindowID) as? [[String: Any]] ?? []
+    }
+
+    static func clickedNormalWindowNumber(event: CGEvent, windows: [[String: Any]]) -> Int? {
+        let target = Int(event.getIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent))
+        guard target > 0,
+              windows.contains(where: {
+                  $0[kCGWindowNumber as String] as? Int == target &&
+                  $0[kCGWindowLayer as String] as? Int == NSWindow.Level.normal.rawValue
+              }) else { return nil }
+        return target
+    }
+
+    private func normalWindowNumber(belongingTo pid: pid_t) -> Int? {
+        for window in visibleWindowInfo() {
+            guard let number = window[kCGWindowNumber as String] as? Int,
+                  number != panel?.windowNumber,
+                  window[kCGWindowLayer as String] as? Int == NSWindow.Level.normal.rawValue else { continue }
+            if window[kCGWindowOwnerPID as String] as? Int != Int(pid) { continue }
+            return number
+        }
+        return nil
+    }
+
+    func handleOutsideClick(relativeTo windowNumber: Int? = nil) {
+        guard automaticallyPresented else { return }
+        finishAutomaticPresentation()
+        // The global event may arrive after the clicked window has already been raised.
+        // Place the result just below that window, never at the back of the whole level.
+        if !pinned, let windowNumber, windowNumber > 0 {
+            panel?.order(.below, relativeTo: windowNumber)
+        }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        finishAutomaticPresentation()
+    }
+
+    func windowWillMiniaturize(_ notification: Notification) {
+        finishAutomaticPresentation()
+    }
+
+    private func updateWindowLevel() {
+        // Keep passive results above the source app without activating or taking key focus.
+        // A click inside or outside restores normal behavior unless the user pinned it.
+        panel?.level = (automaticallyPresented || pinned) ? .floating : .normal
     }
 
     func close() {
