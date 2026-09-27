@@ -44,7 +44,7 @@
 "已关闭" = "Off";
 "HushTranslate 翻译结果" = "HushTranslate Translation";
 "开发版本" = "Development build";
-"一款只在需要时出现的 macOS 大模型翻译工具。" = "A macOS translator that stays out of your way until you need it.";
+"一款只在需要时出现的 macOS 翻译工具。" = "A translation app for macOS that appears only when you need it.";
 "关闭会话" = "End Session";
 "截图翻译" = "Translate Screenshot";
 "剪贴板翻译" = "Translate Clipboard";

@@ -28,7 +28,7 @@ struct AboutView: View {
                 .font(.system(size: 14))
                 .textSelection(.enabled)
 
-            Text(L10n.tr("一款只在需要时出现的 macOS 大模型翻译工具。"))
+            Text(L10n.tr("一款只在需要时出现的 macOS 翻译工具。"))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
