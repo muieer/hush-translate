@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import ApplicationServices
 import ScreenCaptureKit
@@ -55,6 +56,8 @@ final class AppCoordinator: ObservableObject {
     private var workingTask: Task<Void, Never>?
     private var lastRequest: TranslationRequest?
     private var requestID = UUID()
+    private var translationCache = TranslationCache()
+    private var serviceObservation: AnyCancellable?
     /// 截图选区控制器：必须持有，否则 onResult 闭包里的 weak self 在选区完成前
     /// 就随 controller 释放，导致 overlay 窗口 orderOut 不执行、画面卡在灰色选区态。
     private var screenshotOverlay: ScreenshotOverlayController?
@@ -68,6 +71,9 @@ final class AppCoordinator: ObservableObject {
         self.performTranslation = translate
         self.recognizeScreenshot = recognizeScreenshot
         self.appleTranslation = appleTranslation ?? AppleTranslationService()
+        serviceObservation = settings.$services.sink { [weak self] services in
+            self?.translationCache.retainProviders(Set([.apple] + services.map { .llm($0.id) }))
+        }
     }
 
     private convenience init() {
@@ -401,9 +407,22 @@ final class AppCoordinator: ObservableObject {
                 // Cache OCR text, retaining the image when moving between providers.
                 self.lastRequest?.text = request.text
                 self.statusMessage = L10n.tr("翻译中…")
-                let translated = try await self.translate(request, config: config)
+                let language = L10n.language
+                let cacheKey = TranslationCache.Key(request: input, config: config,
+                    interfaceLanguage: language)
+                let translated: String
+                if let cached = self.translationCache.value(for: cacheKey) {
+                    translated = cached
+                } else {
+                    translated = try await self.translate(request, config: config)
+                }
                 try Task.checkCancellation()
                 guard self.requestID == id else { return }
+                // A removed provider or changed prompt language must not gain a stale entry.
+                if config.usesApple || (self.settings.services.contains { $0.id == config.service?.id }
+                    && L10n.language == language) {
+                    self.translationCache.store(translated, for: cacheKey)
+                }
                 self.isWorking = false
                 self.statusMessage = nil
                 self.lastResult = TranslationResult(

@@ -44,6 +44,127 @@ final class ResultTranslationTests: XCTestCase {
 
     private enum TestError: Error { case oldFailure, timeout }
 
+    func testRepeatedTextAcrossSourcesUsesCacheWithFreshPresentation() async throws {
+        let f = Fixture()
+        f.start()
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "cached")
+        try await waitUntil { !f.coordinator.isWorking }
+        let first = try XCTUnwrap(f.coordinator.lastResult)
+        f.coordinator.lastResult = nil // Closing/clearing presentation must not clear the cache.
+        f.coordinator.errorMessage = "previous error"
+        f.start(source: .clipboard)
+        try await waitUntil { !f.coordinator.isWorking }
+        let second = try XCTUnwrap(f.coordinator.lastResult)
+        XCTAssertEqual(f.calls.count, 1)
+        XCTAssertEqual(second.translated, "cached")
+        XCTAssertEqual(second.source, .clipboard)
+        XCTAssertNotEqual(second.id, first.id)
+        XCTAssertGreaterThanOrEqual(second.timestamp, first.timestamp)
+        XCTAssertGreaterThanOrEqual(second.latency, 0)
+        XCTAssertNil(f.coordinator.errorMessage)
+        XCTAssertNil(f.coordinator.statusMessage)
+
+        let other = AppCoordinator(settings: f.settings, translate: { _, _ in "fresh instance" })
+        other.runTranslate(text: "original", imageData: nil, source: .selection, presentWindow: false)
+        try await waitUntil { !other.isWorking }
+        XCTAssertEqual(other.lastResult?.translated, "fresh instance")
+    }
+
+    func testEachProviderReplacesOnlyItsOwnLatestResult() async throws {
+        let f = Fixture()
+        let service = LLMService(name: "Cloud", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "model")
+        XCTAssertTrue(f.settings.saveService(service))
+        f.start(text: "A")
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "cloud A")
+        try await waitUntil { !f.coordinator.isWorking }
+        f.coordinator.changeResultProvider(.apple)
+        try await waitUntil { f.calls.count == 2 }
+        f.calls[1].continuation.resume(returning: "apple A")
+        try await waitUntil { !f.coordinator.isWorking }
+        f.start(text: "B")
+        try await waitUntil { f.calls.count == 3 }
+        f.calls[2].continuation.resume(returning: "apple B")
+        try await waitUntil { !f.coordinator.isWorking }
+        f.settings.selectProvider(.llm(service.id))
+        f.start(text: "A")
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 3)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "cloud A")
+        f.coordinator.changeResultProvider(.apple)
+        try await waitUntil { f.calls.count == 4 }
+        f.calls[3].continuation.resume(returning: "apple A again")
+        try await waitUntil { !f.coordinator.isWorking }
+    }
+
+    func testFailuresAndCancelledLateResultsPreserveSuccessfulCache() async throws {
+        let f = Fixture()
+        f.start(text: "A")
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "cached A")
+        try await waitUntil { !f.coordinator.isWorking }
+        f.start(text: "B")
+        try await waitUntil { f.calls.count == 2 }
+        f.calls[1].continuation.resume(throwing: TestError.oldFailure)
+        try await waitUntil { !f.coordinator.isWorking }
+        f.start(text: "C")
+        try await waitUntil { f.calls.count == 3 }
+        f.start(text: "A")
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 3)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "cached A")
+        XCTAssertNil(f.coordinator.errorMessage)
+        f.calls[2].continuation.resume(returning: "late C")
+        try await Task.sleep(nanoseconds: 30_000_000)
+        f.start(text: "A")
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 3)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "cached A")
+    }
+
+    func testScreenshotsBypassAndPreserveTextCache() async throws {
+        let f = Fixture()
+        f.start()
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "text cache")
+        try await waitUntil { !f.coordinator.isWorking }
+        for count in 2...3 {
+            // Apple drops the image during preparation; the original input must still bypass caching.
+            f.start(image: Data([1, 2]), source: .screenshot)
+            try await waitUntil { f.calls.count == count }
+            f.calls[count - 1].continuation.resume(returning: "screenshot")
+            try await waitUntil { !f.coordinator.isWorking }
+        }
+        f.start()
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 3)
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "text cache")
+    }
+
+    func testServiceRenameAndTimeoutReuseCacheButDeletionRemovesIt() async throws {
+        let f = Fixture()
+        var service = LLMService(name: "Cloud", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "model")
+        XCTAssertTrue(f.settings.saveService(service))
+        f.start()
+        try await waitUntil { f.calls.count == 1 }
+        f.calls[0].continuation.resume(returning: "cached")
+        try await waitUntil { !f.coordinator.isWorking }
+        service.name = "Renamed"
+        XCTAssertTrue(f.settings.saveService(service))
+        f.settings.requestTimeout += 10
+        f.start()
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 1)
+        XCTAssertEqual(f.coordinator.lastResult?.providerName, service.displayName)
+        f.settings.deleteService(service.id)
+        XCTAssertTrue(f.settings.saveService(service))
+        f.start()
+        try await waitUntil { f.calls.count == 2 }
+        f.calls[1].continuation.resume(returning: "after deletion")
+        try await waitUntil { !f.coordinator.isWorking }
+    }
+
     func testProviderChangesReuseSelectionWithoutConsumingOrRestartingSession() async throws {
         let f = Fixture()
         let service = LLMService(name: "Cloud", apiBaseURL: "https://example.com/v1", apiKey: "key", model: "model")
@@ -69,12 +190,10 @@ final class ResultTranslationTests: XCTestCase {
         XCTAssertTrue(f.coordinator.translationSession.consumeValidSelection())
         XCTAssertEqual(f.coordinator.translationSession.state, .off)
         f.coordinator.changeResultProvider(.apple)
-        try await waitUntil { f.calls.count == 3 }
-        XCTAssertEqual(f.calls[2].config.provider, .apple)
-        f.calls[2].continuation.resume(returning: "apple")
         try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.calls.count, 2)
         XCTAssertEqual(f.coordinator.translationSession.state, .off)
-        XCTAssertEqual(f.coordinator.lastResult?.translated, "apple")
+        XCTAssertEqual(f.coordinator.lastResult?.translated, "first")
     }
 
     func testProviderSwitchUsesDisplayedProviderAndIgnoresLateResponses() async throws {
