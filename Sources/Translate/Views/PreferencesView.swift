@@ -60,7 +60,7 @@ struct PreferencesView: View {
             .formStyle(.grouped)
             .frame(width: 540, height: 340)
         }
-        .onAppear { coordinator.refreshPermissions() }
+        // 不在设置窗口出现时探测权限；屏幕录制探测可能触发系统授权弹窗。
         .onChange(of: settings.interfaceLanguage) { _, _ in
             coordinator.refreshLocalization()
             if drafts[.systemPrompt] == SettingsStore.defaultSystemPrompt ||
