@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## 2.1.1 (since 2.1.0)
+
+- Fixed session and screenshot settings that did not update when switching the interface language.
+- Stopped checking permissions automatically when Settings opens, avoiding a Screen Recording prompt caused by that check. Missing permissions are still reported when screenshot translation or a text selection session is first used; permissions can also be checked manually in Settings.
+
 ## 2.1.0 (since 2.0.0)
 
 - Added a Simplified Chinese and English interface switch under Settings → General → App Language. Simplified Chinese remains the default, independent of translation languages.
