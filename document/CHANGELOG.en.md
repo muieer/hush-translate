@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## 2.1.3 (since 2.1.2)
+
+- Fixed translation results being obscured when shown automatically. The result window temporarily stays above normal windows without taking input focus from the current app.
+- Clicking the result, clicking another window, or switching apps restores normal window behavior. Clicking another normal window places the result just below that window instead of behind all normal windows. Explicit pinning remains in effect.
+
 ## 2.1.2 (since 2.1.1)
 
 - Each translation provider now keeps its most recent successful plain-text translation in memory. Text selection and clipboard translation can reuse the same result to reduce duplicate requests. Changes to the input, languages, or relevant service configuration trigger a new translation; quitting the app clears the cache.
