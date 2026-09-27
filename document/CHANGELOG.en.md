@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## 2.1.2 (since 2.1.1)
+
+- Each translation provider now keeps its most recent successful plain-text translation in memory. Text selection and clipboard translation can reuse the same result to reduce duplicate requests. Changes to the input, languages, or relevant service configuration trigger a new translation; quitting the app clears the cache.
+- Screenshot translation neither uses nor replaces the plain-text cache. Failed, cancelled, or stale requests do not replace cached results, and deleting a service clears its cache.
+- Updated the Chinese and English app descriptions in About to cover both Apple Translation and LLM translation.
+
 ## 2.1.1 (since 2.1.0)
 
 - Fixed session and screenshot settings that did not update when switching the interface language.
