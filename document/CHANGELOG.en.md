@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+## 2.2.0 (since 2.1.3)
+
+- Added read-aloud buttons for the original and translated text using native macOS speech synthesis, with pause and resume controls. Starting another passage stops the current one.
+- Selects system voices using the source language for the original text and the target language for the translation. Automatic source-language detection uses the system language recognizer, with voice-language mappings for Simplified and Traditional Chinese.
+- Stops speech when a new translation starts, the result changes, or the result window closes. Refreshing the same result preserves playback state.
+- Read-aloud buttons follow the existing result panel style, with play and pause symbols, Chinese and English labels, and accessibility labels.
+
 ## 2.1.3 (since 2.1.2)
 
 - Fixed translation results being obscured when shown automatically. The result window temporarily stays above normal windows without taking input focus from the current app.
