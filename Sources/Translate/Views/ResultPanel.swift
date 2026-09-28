@@ -6,11 +6,13 @@ struct ResultPanelView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject private var settings: SettingsStore
     @ObservedObject private var sessionPresentation: SessionPresentation
+    @ObservedObject private var speech: ResultSpeechController
     @State private var copiedTranslation = false
     @State private var copiedOriginal = false
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
+        self.speech = coordinator.resultSpeech
         self.settings = coordinator.settings
         self.sessionPresentation = coordinator.sessionPresentation
     }
@@ -119,7 +121,7 @@ struct ResultPanelView: View {
                     if !result.original.isEmpty {
                         sectionTitle(L10n.tr("原文"))
                         selectableText(result.original, font: 11, color: .secondary)
-                        copyButton(result.original, isOriginal: true)
+                        sectionActions(result.original, section: .original, language: result.sourceLang)
                     }
                     if !result.original.isEmpty && !result.translated.isEmpty {
                         Divider()
@@ -127,7 +129,7 @@ struct ResultPanelView: View {
                     if !result.translated.isEmpty {
                         sectionTitle(L10n.tr("译文"))
                         selectableText(result.translated, font: 13, color: .primary)
-                        copyButton(result.translated, isOriginal: false)
+                        sectionActions(result.translated, section: .translation, language: result.targetLang)
                     }
                 }
             }
@@ -191,6 +193,26 @@ struct ResultPanelView: View {
             .foregroundColor(color)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionActions(_ text: String, section: ResultSpeechController.Section,
+                                language: String) -> some View {
+        let state = speech.section == section ? speech.state : .idle
+        let title = state == .speaking ? L10n.tr("暂停") : state == .paused ? L10n.tr("继续") : L10n.tr("朗读")
+        let sectionName = section == .original ? L10n.tr("原文") : L10n.tr("译文")
+        return HStack(spacing: 8) {
+            Button {
+                speech.toggle(section, text: text, language: language)
+            } label: {
+                Label(title, systemImage: state == .speaking ? "pause.fill" : "play.fill")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityLabel("\(title) · \(sectionName)")
+            .help("\(title) · \(sectionName)")
+            copyButton(text, isOriginal: section == .original)
+        }
     }
 
     private func copyButton(_ value: String, isOriginal: Bool) -> some View {

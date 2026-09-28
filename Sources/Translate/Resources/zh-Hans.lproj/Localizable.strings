@@ -1,1 +1,4 @@
 /* Chinese source strings are returned directly by L10n.tr. */
+"朗读" = "朗读";
+"暂停" = "暂停";
+"继续" = "继续";

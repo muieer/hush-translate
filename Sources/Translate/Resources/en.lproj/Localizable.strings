@@ -167,3 +167,6 @@
 "%@\n\n应用已恢复到原位置，当前实例将继续运行。" = "%@\n\nHushTranslate has been moved back to its original location. This copy will stay open.";
 "%@\n\n应用位于 %@，恢复原位置失败：%@\n请退出当前实例后，从“应用程序”重新打开。" = "%@\n\nHushTranslate is at %@. It couldn’t be moved back: %@\nQuit this copy, then open HushTranslate from Applications.";
 "源语言（自动检测）" = "the source language (detected automatically)";
+"朗读" = "Read Aloud";
+"暂停" = "Pause";
+"继续" = "Resume";

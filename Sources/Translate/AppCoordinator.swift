@@ -20,8 +20,12 @@ final class AppCoordinator: ObservableObject {
 
     @Published private(set) var resultProviderName: String?
     @Published private(set) var resultProvider: TranslationProvider?
-    @Published var lastResult: TranslationResult?
-    @Published var isWorking = false
+    @Published var lastResult: TranslationResult? {
+        didSet { if oldValue?.id != lastResult?.id { resultSpeech.stop() } }
+    }
+    @Published var isWorking = false {
+        didSet { if isWorking { resultSpeech.stop() } }
+    }
     @Published var statusMessage: String?
     @Published var errorMessage: String?
     /// 结果悬浮窗是否置顶
@@ -37,6 +41,7 @@ final class AppCoordinator: ObservableObject {
     private let performTranslation: ((TranslationRequest, TranslateConfig) async throws -> String)?
     private let recognizeScreenshot: ((Data) async throws -> String)?
     let appleTranslation: AppleTranslationService
+    let resultSpeech: ResultSpeechController
     private let llmTranslation = TranslateService()
     let hotKey     = HotKeyService()
     let selection  = SelectionMonitor()
@@ -66,8 +71,10 @@ final class AppCoordinator: ObservableObject {
     init(settings: SettingsStore,
          recognizeScreenshot: ((Data) async throws -> String)? = nil,
          translate: ((TranslationRequest, TranslateConfig) async throws -> String)? = nil,
-         appleTranslation: AppleTranslationService? = nil) {
+         appleTranslation: AppleTranslationService? = nil,
+         resultSpeech: ResultSpeechController? = nil) {
         self.settings = settings
+        self.resultSpeech = resultSpeech ?? ResultSpeechController()
         self.performTranslation = translate
         self.recognizeScreenshot = recognizeScreenshot
         self.appleTranslation = appleTranslation ?? AppleTranslationService()
@@ -453,6 +460,7 @@ final class AppCoordinator: ObservableObject {
     func showResultPanel(keepPosition: Bool = false) {
         if resultPanel == nil {
             resultPanel = FloatingPanelController<AnyView>()
+            resultPanel?.onClose = { [weak self] in self?.resultSpeech.stop() }
         }
         resultPanel?.show(
             { AnyView(ResultPanelView(coordinator: self)) },
@@ -480,6 +488,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func dismissResultPanel() {
+        resultSpeech.stop()
         resultPanel?.close()
     }
 
