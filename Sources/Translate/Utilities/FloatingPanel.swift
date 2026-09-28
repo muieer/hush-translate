@@ -23,6 +23,7 @@ private final class ResultPanelWindow: NSWindow {
 
 @MainActor
 final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
+    var onClose: (() -> Void)?
     private var panel: NSWindow?
     private var hosting: NSHostingController<Content>?
     private(set) var pinned = false
@@ -239,6 +240,7 @@ final class FloatingPanelController<Content: View>: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         finishAutomaticPresentation()
+        onClose?()
     }
 
     func windowWillMiniaturize(_ notification: Notification) {
