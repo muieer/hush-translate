@@ -7,11 +7,11 @@
 
 ## About
 
-HushTranslate is for people who mostly read on their own and occasionally need help translating selected text or text in screenshots.
+Selecting text does not always mean you need a translation. HushTranslate is a macOS translation app that lets you enable selected-text translation when you need it, keeping unwanted popups out of your reading and editing.
 
-Selecting text does not always mean asking for a translation. An always-on selection translator can interrupt reading with frequent popups. HushTranslate uses **translation sessions** to control when text selection triggers translation. Start a continuous session, a session for the next N selections, or a session lasting N minutes. Then select text and click the Translate button above the selection, without pressing a shortcut each time. The session count decreases only when you click Translate. Limited sessions end automatically when the count or time runs out. With no active session, ordinary text selection does not trigger translation.
+When needed, start a **translation session** with a translation count or time limit, then select text and click Translate. Only clicks on Translate count toward the limit. The session ends automatically when the count or time runs out. You can also keep a session running and close it from the menu bar at any time.
 
-For example, enable translation for the next 3 selections, work through a few difficult passages, and return to uninterrupted reading. Continuous sessions can be closed from the menu bar at any time.
+With no active session, selecting text shows no translation button or popup. Keep reading and editing without quitting the app. Screenshot and clipboard translation are also available.
 
 ![HushTranslate usage demo](image/introduction.gif)
 
