@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## 2.2.2 (since 2.2.1)
+
+- Updated startup installation guidance: launching outside the system or user Applications folder now prompts users to drag the app into Applications and reopen it, and prevents normal services from starting. This avoids read-aloud failures caused by moving the app while it is running.
+- The installation prompt now offers only “Open Applications and Quit”; removed automatic relocation, relaunch, and skip-installation logic.
+- Updated the Chinese and English installation prompts and user guides.
+
 ## 2.2.1 (since 2.2.0)
 
 - Switching translation providers in the result window now keeps the previous LLM request running in the background. Switching back with the same input, languages, and configuration reuses the in-flight request or completed result to reduce duplicate requests.
