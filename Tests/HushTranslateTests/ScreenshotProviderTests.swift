@@ -153,6 +153,31 @@ final class ScreenshotProviderTests: XCTestCase {
         }
     }
 
+    func testLLMOCRContinuesInBackgroundAndRejoinsAfterAppleEnrichesInput() async throws {
+        let f = Fixture()
+        let service = f.selectLLM()
+        f.settings.ocrMode = .local
+        var pending: CheckedContinuation<String, Error>?
+        f.ocr = { _ in
+            if f.ocrCalls == 1 {
+                return try await withCheckedThrowingContinuation { pending = $0 }
+            }
+            return "Apple OCR"
+        }
+        f.screenshot()
+        try await waitUntil { pending != nil }
+        f.coordinator.changeResultProvider(.apple)
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.coordinator.lastResult?.original, "Apple OCR")
+        f.coordinator.changeResultProvider(.llm(service.id))
+        pending?.resume(returning: "LLM OCR")
+        try await waitUntil { !f.coordinator.isWorking }
+        XCTAssertEqual(f.ocrCalls, 2)
+        XCTAssertEqual(f.requests.count, 2)
+        XCTAssertEqual(f.requests.last?.1.provider, .llm(service.id))
+        XCTAssertEqual(f.coordinator.lastResult?.original, "LLM OCR")
+    }
+
     func testDefaultRouterUsesAppleBridgeAndCancellationClearsLoading() async throws {
         let f = Fixture()
         let appleTranslation = AppleTranslationService(routeSelection: { _ in (.lowLatency, false) })

@@ -61,7 +61,48 @@ final class AppCoordinator: ObservableObject {
     private var workingTask: Task<Void, Never>?
     private var lastRequest: TranslationRequest?
     private var requestID = UUID()
+    private var resultInputID = UUID()
     private var translationCache = TranslationCache()
+
+    /// One operation per LLM configuration. Presentation can detach and reattach
+    /// without changing the lifetime of its network request.
+    private final class LLMOperation {
+        let id = UUID()
+        let key: LLMOperationKey
+        var presentationID: UUID
+        var task: Task<Void, Never>?
+        var completed: (request: TranslationRequest, translated: String)?
+
+        init(key: LLMOperationKey, presentationID: UUID) {
+            self.key = key
+            self.presentationID = presentationID
+        }
+    }
+
+    private struct LLMOperationKey: Equatable {
+        let translation: TranslationCache.Key?
+        let image: Data?
+        let screenshot: Bool
+        let ocrMode: OCRMode
+        let inputID: UUID?
+
+        init(input: TranslationRequest, config: TranslateConfig, language: InterfaceLanguage, inputID: UUID) {
+            image = input.imageData
+            screenshot = input.source == .screenshot
+            self.inputID = screenshot || image != nil ? inputID : nil
+            ocrMode = config.ocrMode
+            var textInput = input
+            // OCR may enrich lastRequest while this operation is in flight.
+            // The same image and OCR mode still identify the same input.
+            if image != nil { textInput.text = "" }
+            textInput.imageData = nil
+            textInput.source = .selection
+            translation = TranslationCache.Key(request: textInput, config: config,
+                                               interfaceLanguage: language)
+        }
+    }
+
+    private var llmOperations: [TranslationProvider: LLMOperation] = [:]
     private var serviceObservation: AnyCancellable?
     /// 截图选区控制器：必须持有，否则 onResult 闭包里的 weak self 在选区完成前
     /// 就随 controller 释放，导致 overlay 窗口 orderOut 不执行、画面卡在灰色选区态。
@@ -79,7 +120,17 @@ final class AppCoordinator: ObservableObject {
         self.recognizeScreenshot = recognizeScreenshot
         self.appleTranslation = appleTranslation ?? AppleTranslationService()
         serviceObservation = settings.$services.sink { [weak self] services in
-            self?.translationCache.retainProviders(Set([.apple] + services.map { .llm($0.id) }))
+            guard let self else { return }
+            let providers = Set([TranslationProvider.apple] + services.map { .llm($0.id) })
+            self.translationCache.retainProviders(providers)
+            for provider in Array(self.llmOperations.keys) where !providers.contains(provider) {
+                let operation = self.llmOperations.removeValue(forKey: provider)
+                operation?.task?.cancel()
+                if operation?.presentationID == self.requestID {
+                    self.isWorking = false
+                    self.statusMessage = nil
+                }
+            }
         }
     }
 
@@ -328,12 +379,12 @@ final class AppCoordinator: ObservableObject {
         var errorDescription: String? { L10n.tr("OCR 未识别到任何文字，请重新框选包含清晰文字的区域。") }
     }
 
-    private func prepare(_ input: TranslationRequest, config: TranslateConfig) async throws -> TranslationRequest {
+    private func prepare(_ input: TranslationRequest, config: TranslateConfig, presentationID: () -> UUID) async throws -> TranslationRequest {
         var request = input
         if request.source == .screenshot, let image = request.imageData,
            request.text.isEmpty, config.ocrMode != .remote {
             do {
-                statusMessage = L10n.tr("识别图中文字…")
+                if requestID == presentationID() { statusMessage = L10n.tr("识别图中文字…") }
                 request.text = try await recognize(image)
                 try Task.checkCancellation()
                 if request.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -369,7 +420,7 @@ final class AppCoordinator: ObservableObject {
         settings.selectProvider(provider)
         guard currentProvider != provider else { return }
         // Reuse the admitted input; changing providers never consumes a selection.
-        retranslateLastInput()
+        retranslateLastInput(reuseInFlight: true)
     }
 
     func changeResultSourceLanguage(_ code: String) {
@@ -384,13 +435,13 @@ final class AppCoordinator: ObservableObject {
         retranslateLastInput()
     }
 
-    private func retranslateLastInput() {
+    private func retranslateLastInput(reuseInFlight: Bool = false) {
         guard let request = lastRequest else { return }
         runTranslate(text: request.text, imageData: request.imageData,
-                     source: request.source, presentWindow: false)
+                     source: request.source, presentWindow: false, reuseInFlight: reuseInFlight)
     }
 
-    func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true) {
+    func runTranslate(text: String, imageData: Data?, source: TranslationRequest.Source, presentWindow: Bool = true, reuseInFlight: Bool = false) {
         let id = beginRequest()
         let config = settings.snapshot()
         let input = TranslationRequest(text: text, sourceLang: config.sourceLanguage,
@@ -404,17 +455,64 @@ final class AppCoordinator: ObservableObject {
         statusMessage = L10n.tr("翻译中…")
         if presentWindow { showResultPanel() } else { refreshResultPanel() }
 
-        workingTask = Task { [weak self] in
-            guard let self, !Task.isCancelled, self.requestID == id else { return }
+        let language = L10n.language
+        if !reuseInFlight { resultInputID = UUID() }
+        let key = LLMOperationKey(input: input, config: config, language: language, inputID: resultInputID)
+        if !reuseInFlight {
+            // Screenshot results are reusable only within the current result-page input.
+            for provider in Array(llmOperations.keys) {
+                if let operation = llmOperations[provider], operation.completed != nil,
+                   operation.key.screenshot || operation.key.image != nil {
+                    llmOperations.removeValue(forKey: provider)
+                }
+            }
+        }
+        if !config.usesApple, reuseInFlight,
+           let operation = llmOperations[config.provider], operation.key == key {
+            operation.presentationID = id
+            if let completed = operation.completed {
+                presentTranslation(completed.translated, request: completed.request,
+                                   config: config, source: source, start: Date())
+            }
+            return
+        }
+
+        let operation: LLMOperation?
+        if config.usesApple {
+            operation = nil
+        } else {
+            llmOperations.removeValue(forKey: config.provider)?.task?.cancel()
+            let next = LLMOperation(key: key, presentationID: id)
+            llmOperations[config.provider] = next
+            operation = next
+        }
+        let task = Task { [weak self, weak operation] in
+            guard let self, !Task.isCancelled else { return }
+            let presentationID = { operation?.presentationID ?? id }
+            let isValid = {
+                if let operation {
+                    return self.llmOperations[config.provider]?.id == operation.id
+                }
+                return self.requestID == id
+            }
+            guard isValid() else { return }
             let start = Date()
+            defer {
+                if let operation, isValid() {
+                    operation.task = nil
+                    if operation.completed == nil {
+                        self.llmOperations.removeValue(forKey: config.provider)
+                    }
+                }
+            }
             do {
-                let request = try await self.prepare(input, config: config)
+                let request = try await self.prepare(input, config: config, presentationID: presentationID)
                 try Task.checkCancellation()
-                guard self.requestID == id else { return }
-                // Cache OCR text, retaining the image when moving between providers.
-                self.lastRequest?.text = request.text
-                self.statusMessage = L10n.tr("翻译中…")
-                let language = L10n.language
+                guard isValid() else { return }
+                if self.requestID == presentationID() {
+                    self.lastRequest?.text = request.text
+                    self.statusMessage = L10n.tr("翻译中…")
+                }
                 let cacheKey = TranslationCache.Key(request: input, config: config,
                     interfaceLanguage: language)
                 let translated: String
@@ -424,28 +522,41 @@ final class AppCoordinator: ObservableObject {
                     translated = try await self.translate(request, config: config)
                 }
                 try Task.checkCancellation()
-                guard self.requestID == id else { return }
-                // A removed provider or changed prompt language must not gain a stale entry.
+                guard isValid() else { return }
                 if config.usesApple || (self.settings.services.contains { $0.id == config.service?.id }
                     && L10n.language == language) {
                     self.translationCache.store(translated, for: cacheKey)
                 }
-                self.isWorking = false
-                self.statusMessage = nil
-                self.lastResult = TranslationResult(
-                    original: request.text, translated: translated,
-                    sourceLang: request.sourceLang, targetLang: request.targetLang,
-                    providerName: config.displayName, latency: Date().timeIntervalSince(start),
-                    timestamp: Date(), source: source)
-                self.refreshResultPanel()
+                // Text uses the existing one-result-per-provider cache. Retain image
+                // results in the operation only, so separate screenshots never hit it.
+                if cacheKey == nil {
+                    operation?.completed = (request, translated)
+                }
+                guard self.requestID == presentationID() else { return }
+                self.presentTranslation(translated, request: request, config: config,
+                                        source: source, start: start)
             } catch {
-                guard !Task.isCancelled, self.requestID == id else { return }
+                guard !Task.isCancelled, isValid(), self.requestID == presentationID() else { return }
                 self.isWorking = false
                 self.statusMessage = nil
                 self.errorMessage = error is CancellationError ? L10n.tr("翻译已取消，请重新选择文字或切换语言后重试。") : error.localizedDescription
                 self.refreshResultPanel()
             }
         }
+        if let operation { operation.task = task } else { workingTask = task }
+    }
+
+    private func presentTranslation(_ translated: String, request: TranslationRequest,
+                                    config: TranslateConfig, source: TranslationRequest.Source, start: Date) {
+        lastRequest?.text = request.text
+        isWorking = false
+        statusMessage = nil
+        lastResult = TranslationResult(
+            original: request.text, translated: translated,
+            sourceLang: request.sourceLang, targetLang: request.targetLang,
+            providerName: config.displayName, latency: Date().timeIntervalSince(start),
+            timestamp: Date(), source: source)
+        refreshResultPanel()
     }
 
     private func showError(_ msg: String, keepPosition: Bool = false) {
