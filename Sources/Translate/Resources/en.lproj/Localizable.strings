@@ -137,13 +137,6 @@
 "顶层不是 JSON 对象" = "The response isn’t a JSON object";
 "无 choices" = "The response has no choices";
 "无 content" = "The response has no content";
-"将 HushTranslate 移到“应用程序”？" = "Move HushTranslate to Applications?";
-"当前应用不在 Applications 目录中。移动后将从 /Applications 重新启动，并退出当前实例。" = "HushTranslate is outside the Applications folder. It will move to /Applications, reopen there, and close this copy.";
-"移动并重新启动" = "Move and Restart";
-"暂不移动" = "Not Now";
-"无法移动 HushTranslate" = "Couldn’t move HushTranslate";
-"系统未能创建新的应用实例。" = "macOS couldn’t start a new copy of the app.";
-"无法重新启动 HushTranslate" = "Couldn’t restart HushTranslate";
 "图像无法转换为 CGImage" = "Couldn’t convert the image to a CGImage";
 "界面语言" = "App Language";
 "剩余 %d 次" = "%d selections left";
@@ -163,10 +156,10 @@
 "Apple 翻译未完成：%@" = "Apple Translation couldn’t finish: %@";
 "URL 不合法: %@" = "Invalid URL: %@";
 "响应解析失败: %@" = "Couldn’t read the response: %@";
-"%@\n\n请检查“应用程序”目录的写入权限，以及是否已有同名应用。也可以退出后通过 Finder 手动移动。当前实例将继续运行。" = "%@\n\nCheck that you can write to Applications and that another copy of the app is not already there. You can also quit and move HushTranslate in Finder. This copy will stay open.";
-"%@\n\n应用已恢复到原位置，当前实例将继续运行。" = "%@\n\nHushTranslate has been moved back to its original location. This copy will stay open.";
-"%@\n\n应用位于 %@，恢复原位置失败：%@\n请退出当前实例后，从“应用程序”重新打开。" = "%@\n\nHushTranslate is at %@. It couldn’t be moved back: %@\nQuit this copy, then open HushTranslate from Applications.";
 "源语言（自动检测）" = "the source language (detected automatically)";
 "朗读" = "Read Aloud";
 "暂停" = "Pause";
 "继续" = "Resume";
+"请先将 HushTranslate 拖入“应用程序”" = "Drag HushTranslate to Applications First";
+"请将 HushTranslate 拖到“应用程序”文件夹，再从该文件夹打开。点击下方按钮将打开“应用程序”文件夹，并退出 HushTranslate。" = "Drag HushTranslate to the Applications folder, then open it from there. Clicking the button below will open Applications and quit HushTranslate.";
+"打开“应用程序”并退出" = "Open Applications and Quit";
