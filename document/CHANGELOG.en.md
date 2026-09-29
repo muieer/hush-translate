@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+## 2.2.1 (since 2.2.0)
+
+- Switching translation providers in the result window now keeps the previous LLM request running in the background. Switching back with the same input, languages, and configuration reuses the in-flight request or completed result to reduce duplicate requests.
+- Each LLM provider manages its own request. A new request for the same provider replaces the previous one, while background status, results, and errors do not overwrite the currently displayed provider. Deleting a provider cancels its request and clears its cache.
+- Switching providers for the same screenshot in the result window can reuse requests and results. Taking a new screenshot or changing translation languages starts processing again; screenshot results stay out of the plain-text cache.
+- Refined the project introduction in the Chinese and English README files.
+
 ## 2.2.0 (since 2.1.3)
 
 - Added read-aloud buttons for the original and translated text using native macOS speech synthesis, with pause and resume controls. Starting another passage stops the current one.
