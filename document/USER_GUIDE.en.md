@@ -8,10 +8,12 @@ HushTranslate lives in the macOS menu bar and translates selected text, screensh
 
 Release builds are free, ad-hoc signed, and are not notarized with an Apple Developer ID.
 
-1. Download `HushTranslate-x.x.x.zip` from [GitHub Releases](https://github.com/muieer/hush-translate/releases), unzip it, and move `HushTranslate.app` to `/Applications` if you prefer.
-2. Open the app. If Gatekeeper blocks the first launch, go to System Settings → Privacy & Security, find the HushTranslate notice, and choose Open Anyway.
+1. Download `HushTranslate-x.x.x.zip` from [GitHub Releases](https://github.com/muieer/hush-translate/releases), unzip it, and drag `HushTranslate.app` to `/Applications` in Finder.
+2. Open the app from Applications. If Gatekeeper blocks the first launch, go to System Settings → Privacy & Security, find the HushTranslate notice, and choose Open Anyway.
 3. Grant Accessibility for selection translation and Screen Recording for screenshot translation when needed. HushTranslate appears in the menu bar without opening a main window.
 4. Apple Translation needs no endpoint or API key. macOS may ask to download language resources. On macOS 26.4 or later, HushTranslate explicitly requests the low-latency strategy; older releases use the system default.
+
+If opened from another location, the app asks you to drag it to Applications first. Click **Open Applications and Quit** to open that folder in Finder and quit HushTranslate. Drag the app there, then open it from Applications.
 
 ## App language and translation languages
 

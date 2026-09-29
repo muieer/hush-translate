@@ -12,10 +12,12 @@ HushTranslate 免费分发，发布版使用 ad-hoc 签名，未使用 Apple Dev
 
 1. 从 [GitHub Releases](https://github.com/muieer/hush-translate/releases) 下载 `HushTranslate-x.x.x.zip`。
 2. 解压 ZIP 文件。
-3. 建议将 `HushTranslate.app` 移至 `/Applications`（应用程序）文件夹，也可放在其他位置。
-4. 双击应用。macOS Gatekeeper 可能阻止首次打开；此时前往「系统设置 → 隐私与安全性」，找到 HushTranslate 的提示，点击「仍要打开」，并按系统提示确认。
+3. 在 Finder 中将 `HushTranslate.app` 拖入 `/Applications`（应用程序）文件夹。
+4. 从“应用程序”文件夹打开应用。macOS Gatekeeper 可能阻止首次打开；此时前往「系统设置 → 隐私与安全性」，找到 HushTranslate 的提示，点击「仍要打开」，并按系统提示确认。
 5. 启动后，按系统提示授予所需的「辅助功能」「屏幕录制」等权限。具体用途见下方「系统权限」。
 6. 默认使用 Apple 翻译，无需配置接口或密钥。macOS 26.4 及以上显式选择低延时策略，较早版本使用系统默认策略；需要语言资源时按系统提示下载。使用 LLM 时，可在设置中添加服务；API Key 由用户自行获取，费用由自己的服务商账号承担。
+
+如果从其他位置打开，应用会提示先拖入“应用程序”。点击「打开“应用程序”并退出」后，Finder 会打开该文件夹，HushTranslate 随即退出。将 App 拖入后，再从该文件夹打开。
 
 ## 使用前准备
 

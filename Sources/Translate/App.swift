@@ -38,7 +38,7 @@ private struct TranslationWindowCommands: Commands {
 final class HushTranslateAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
-            if await AppInstallation.promptAndMoveIfNeeded() { return }
+            if AppInstallation.promptForInstallationIfNeeded() { return }
             AppCoordinator.shared.bootstrap()
         }
     }
