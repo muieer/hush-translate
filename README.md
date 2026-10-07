@@ -13,7 +13,9 @@
 
 会话关闭时，选中文字不会弹出翻译按钮或窗口，无须退出应用，就能继续专注阅读和编辑。另支持截图和剪贴板翻译。
 
-![HushTranslate 操作演示](image/introduction.gif)
+<p align="left">
+  <img src="image/introduction.gif" width="50%" alt="HushTranslate 操作演示">
+</p>
 
 版本变化见 [CHANGELOG.md](document/CHANGELOG.md)。
 

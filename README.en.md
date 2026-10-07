@@ -13,7 +13,9 @@ When needed, start a **translation session** with a translation count or time li
 
 With no active session, selecting text shows no translation button or popup. Keep reading and editing without quitting the app. Screenshot and clipboard translation are also available.
 
-![HushTranslate usage demo](image/introduction.gif)
+<p align="left">
+  <img src="image/introduction.gif" width="50%" alt="HushTranslate usage demo">
+</p>
 
 See [CHANGELOG.en.md](document/CHANGELOG.en.md) for release changes.
 
